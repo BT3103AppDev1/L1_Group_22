@@ -1,9 +1,7 @@
 <template>
-  <header>
-    <!-- navbar or logo -->
-  </header>
-
-  <RouterView />
+  <div class="app-wrapper">
+    <RouterView />
+  </div>
 </template>
 
 <script setup>
@@ -11,5 +9,12 @@
 </script>
 
 <style>
-  /* global styles if any */
+  .app-wrapper,
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+  }
 </style>
