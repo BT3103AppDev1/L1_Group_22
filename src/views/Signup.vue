@@ -195,7 +195,7 @@ const handleSignup = async () => {
     )
 
     const user = userCredential.user
-    console.log('User created:', user.uid)
+    //console.log('User created:', user.uid)
 
     // → Here you would normally:
     // 1. Save additional data to Firestore (fullName, username, userType)
