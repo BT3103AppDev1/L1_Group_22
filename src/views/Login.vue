@@ -107,6 +107,8 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff } from 'lucide-vue-next'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import { auth } from '@/firebase'
 
 const router = useRouter()
 
@@ -124,11 +126,22 @@ function chooseContractor() {
     userType.value = 'contractor'
 }
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   isLoading.value = true
+  try {
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email.value.trim(),
+      password.value
+    )
+
+    console.log('Logged in user:', userCredential.user)
+    router.push('/contractor-home')
+  } catch (error) {
+    console.error(error)
+  }
   setTimeout(() => {
     isLoading.value = false
-    router.push('/dashboard')
   }, 1000)
 }
 
