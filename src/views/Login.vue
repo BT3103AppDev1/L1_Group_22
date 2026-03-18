@@ -74,6 +74,10 @@
             <button type="button" class="forgot-link">Forgot password?</button>
           </div>
 
+          <div v-if="errorMessage" class="error-box">
+            {{ errorMessage }}
+          </div>
+
           <!-- Submit -->
           <button
             type="submit"
@@ -109,7 +113,10 @@ import { useRouter } from 'vue-router'
 import { Eye, EyeOff } from 'lucide-vue-next'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import { auth } from '@/firebase'
+import { getFirestore, doc, getDoc } from 'firebase/firestore'
+import { getAuth, signOut } from "firebase/auth"
 
+const db = getFirestore()
 const router = useRouter()
 
 const email = ref('')
@@ -117,6 +124,8 @@ const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
 const userType = ref('homeowner');
+
+const errorMessage = ref('')
 
 function chooseHomeowner() {
     userType.value = 'homeowner'
@@ -128,6 +137,7 @@ function chooseContractor() {
 
 const handleSubmit = async () => {
   isLoading.value = true
+
   try {
     const userCredential = await signInWithEmailAndPassword(
       auth,
@@ -135,10 +145,35 @@ const handleSubmit = async () => {
       password.value
     )
 
+    const user = userCredential.user
+    const userDocRef = doc(db, 'users', user.uid)
+    const userDocSnap = await getDoc(userDocRef)
+
+    if (!userDocSnap.exists()) {
+      throw new Error('User profile not found')
+    }
+
+    const userData = userDocSnap.data()
+    const realUserType = userData.userType   // "homeowner" or "contractor"
+
+    // Enforce correct userType
+    if (realUserType !== userType.value) {
+      await signOut(auth)
+      errorMessage.value = `This account is registered as a ${realUserType}.\nPlease select the correct type.`
+      return
+    }
+
     console.log('Logged in user:', userCredential.user)
-    router.push('/contractor-home')
+    if (userType.value === 'contractor') {
+      router.push('/contractor-home')
+    } else {
+      router.push('/dashboard')
+    }
+    
   } catch (error) {
     console.error(error)
+  } finally {
+    isLoading.value = false
   }
   setTimeout(() => {
     isLoading.value = false
@@ -365,5 +400,15 @@ const navigate = (path) => {
     .forgot-link:hover,
     .policy-link:hover {
         color: #1d4ed8;
+    }
+    .error-box {
+      color: #dc2626;           /* red-600 */
+      font-size: 0.875rem;
+      text-align: center;
+      margin: 0.75rem 0 1.25rem;
+      padding: 0.5rem;
+      background-color: rgba(239, 68, 68, 0.1); /* very light red */
+      border-radius: 0.375rem;
+      white-space: pre-line;
     }
 </style>
