@@ -1,15 +1,15 @@
 <template>
     <ToolBar/>
-      <div class="search-bar-wrapper">
-        <div class="search-bar">
-          <span class="search-icon">🔎</span>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search jobs by title, category, or location..."
-          />
-        </div>
+    <div class="search-bar-wrapper">
+      <div class="search-bar">
+        <span class="search-icon">🔎</span>
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search jobs by title, category, or location..."
+        />
       </div>
+    </div>
   
       <main class="main-content">
         <aside class="filters-panel">
@@ -151,10 +151,9 @@
   <script setup> 
   import { computed, onMounted, ref } from "vue"
   import { useRouter } from "vue-router"
-  import { getAuth, signOut } from "firebase/auth"
+  import { getAuth } from "firebase/auth"
   import { collection, getDocs, orderBy, query } from "firebase/firestore"
   import { db } from "@/firebase"
-  import reliabuildLogo from "@/assets/reliabuild_logo.jpg"
   import ToolBar from "@/components/ToolBar.vue"
   
   const router = useRouter()
@@ -335,18 +334,6 @@
     router.push(`/contractor/job-details/${job.id}`)
   }
   
-  function goToProfile() {
-    router.push("/contractor/profile")
-  }
-  
-  async function logout() {
-    try {
-      await signOut(auth)
-      router.push("/")
-    } catch (err) {
-      console.log(err)
-    }
-  }
   </script>
   
   <style scoped>

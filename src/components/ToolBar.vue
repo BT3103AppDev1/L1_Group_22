@@ -2,12 +2,15 @@
     <div class="home">
       <header class="top-header">
         <div class="logo-section">
-          <img :src="reliabuildLogo" alt="Reliabuild Logo" class="logo-image" />
+          <img src="@/assets/reliabuild_logo.jpg" alt="Reliabuild Logo" class="logo-image" />
           <div class="logo-text">Reliabuild</div>
         </div>
   
         <div class="top-actions">
           <button class="icon-btn" type="button">🔔</button>
+          <button class="home-btn" type=""button @click="goToHome">
+            Home
+          </button>
           <button class="profile-btn" type="button" @click="goToProfile">
             My Profile
           </button>
@@ -19,14 +22,18 @@
     </div>
 </template>
 
-<script>
-import { getAuth, signOut } from "firebase/auth"
+<script setup>
+import { signOut } from "firebase/auth"
 import { useRouter } from "vue-router"
-import { computed, onMounted, ref } from "vue"
-import reliabuildLogo from "@/assets/reliabuild_logo.jpg"
+
+const router = useRouter()
 
 function goToProfile() {
     router.push("/contractor/profile")
+}
+
+function goToHome() {
+  router.push("/contractor-home")
 }
   
 async function logout() {
@@ -41,7 +48,7 @@ async function logout() {
 
 <style scoped>
 .home {
-    min-height: 100vh;
+    min-height: 0vh;
     background: #f3f7fb;
     font-family: Arial, sans-serif;
     color: #1f2937;
@@ -79,9 +86,10 @@ async function logout() {
     align-items: center;
     gap: 12px;
 }
-  
+
 .icon-btn,
 .profile-btn,
+.home-btn,
 .logout-btn {
     border: none;
     border-radius: 8px;
@@ -98,6 +106,7 @@ async function logout() {
 }
   
 .profile-btn,
+.home-btn,
 .logout-btn {
     background: white;
     color: #2754e6;

@@ -1,18 +1,5 @@
 <template>
-    <div class="profile-page">
-      <header class="top-bar">
-        <div class="brand">
-          <img :src="logo" alt="Reliabuild" class="brand-logo" />
-          <span class="brand-name">Reliabuild</span>
-        </div>
-  
-        <div class="top-right">
-          <button class="notif-btn">🔔<span class="notif-badge">3</span></button>
-          <button class="top-btn" @click="goFindProjects">Find Projects</button>
-          <button class="top-btn" @click="logout">Logout</button>
-        </div>
-      </header>
-  
+    <ToolBar/>
       <div class="page-content">
         <section class="profile-card">
           <template v-if="!editing">
@@ -254,13 +241,12 @@
           </div>
         </section>
       </div>
-    </div>
   </template>
   
   <script setup>
   import { reactive, ref } from "vue"
   import { useRouter } from "vue-router"
-  import logo from "@/assets/reliabuild_logo.jpg"
+  import ToolBar from "@/components/ToolBar.vue"
   
   const router = useRouter()
   
