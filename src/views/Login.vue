@@ -124,6 +124,7 @@ const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
 const userType = ref('homeowner');
+var realUserType = ref('')
 
 const errorMessage = ref('')
 
@@ -154,7 +155,7 @@ const handleSubmit = async () => {
     }
 
     const userData = userDocSnap.data()
-    const realUserType = userData.userType   // "homeowner" or "contractor"
+    realUserType = userData.userType   // "homeowner" or "contractor"
 
     // Enforce correct userType
     if (realUserType !== userType.value) {

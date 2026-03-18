@@ -1,4 +1,6 @@
 import ContractorHome from '@/views/ContractorHome.vue'
+import HomeownerHome from '@/views/HomeownerHome.vue'
+
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -20,14 +22,24 @@ const router = createRouter({
     component: () => import('../views/Dashboard.vue')
   },
   {
-    path: '/contractor-home',
-    name: 'contractor-home',
+    path: '/contractor/home',
+    name: 'Contractor Home',
     component: ContractorHome,
   },
   {
     path: "/contractor/profile",
-    name: "contractor-profile",
+    name: "Contractor Profile",
     component: () => import("../views/ContractorProfile.vue")
+  },
+  {
+    path: '/homeowner/home',
+    name: 'Homeowner Home',
+    component: HomeownerHome,
+  },
+  {
+    path: "/homeowner/profile",
+    name: "Homeowner Profile",
+    component: () => import("../views/HomeownerProfile.vue")
   },
 ]
 })

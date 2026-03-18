@@ -1,38 +1,38 @@
 <template>
-    <ToolBarContractor/>
+    <ToolBarHomeowner/>
       <div class="page-content">
         <section class="profile-card">
           <template v-if="!editing">
             <div class="profile-top">
-              <div class="avatar">{{ contractor.initial }}</div>
+              <div class="avatar">{{ homeowner.initial }}</div>
   
               <div class="profile-main">
                 <div class="name-row">
-                  <h1>{{ contractor.fullName }}</h1>
+                  <h1>{{ homeowner.fullName }}</h1>
                   <span class="verified">✓</span>
                 </div>
   
-                <p class="company">{{ contractor.company }}</p>
+                <p class="company">{{ homeowner.company }}</p>
   
                 <div class="rating-row">
                   <span class="star">★</span>
-                  <span>{{ contractor.rating }}</span>
-                  <span class="muted">({{ contractor.reviewCount }} reviews)</span>
+                  <span>{{ homeowner.rating }}</span>
+                  <span class="muted">({{ homeowner.reviewCount }} reviews)</span>
                   <span class="dot">•</span>
-                  <span class="muted">{{ contractor.projectsCompleted }} projects completed</span>
+                  <span class="muted">{{ homeowner.projectsCompleted }} projects completed</span>
                 </div>
   
                 <div class="info-grid">
-                  <div class="info-item">✉ {{ contractor.email }}</div>
-                  <div class="info-item">📞 {{ contractor.phone }}</div>
-                  <div class="info-item">📍 {{ contractor.location }}</div>
-                  <div class="info-item">👤 {{ contractor.yearsExperience }} years experience</div>
+                  <div class="info-item">✉ {{ homeowner.email }}</div>
+                  <div class="info-item">📞 {{ homeowner.phone }}</div>
+                  <div class="info-item">📍 {{ homeowner.location }}</div>
+                  <div class="info-item">👤 {{ homeowner.yearsExperience }} years experience</div>
                 </div>
   
                 <div class="skills-section">
                   <div class="skills-title">Skills & Specializations</div>
                   <div class="skill-list">
-                    <span v-for="skill in contractor.skills" :key="skill" class="skill-pill">
+                    <span v-for="skill in homeowner.skills" :key="skill" class="skill-pill">
                       {{ skill }}
                     </span>
                   </div>
@@ -180,7 +180,7 @@
                   <div class="opportunity-top">
                     <div>
                       <h3>{{ job.title }}</h3>
-                      <p class="subtext">Posted by {{ job.homeowner }}</p>
+                      <p class="subtext">Posted by {{ job.contractor }}</p>
                       <div class="opportunity-meta">
                         <span>📍 {{ job.location }}</span>
                         <span>{{ job.budget }}</span>
@@ -246,7 +246,7 @@
   <script setup>
   import { reactive, ref } from "vue"
   import { useRouter } from "vue-router"
-  import ToolBarContractor from "@/components/ToolBarContractor.vue"
+  import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   
   const router = useRouter()
   
@@ -254,7 +254,7 @@
   const editing = ref(false)
   const newSkill = ref("")
   
-  const contractor = reactive({
+  const homeowner = reactive({
     initial: "M",
     fullName: "Samson Lim",
     company: "Property Lim Brothers Renovation",
@@ -276,14 +276,14 @@
   })
   
   const editForm = reactive({
-    initial: contractor.initial,
-    fullName: contractor.fullName,
-    company: contractor.company,
-    email: contractor.email,
-    phone: contractor.phone,
-    location: contractor.location,
-    yearsExperience: contractor.yearsExperience,
-    skills: [...contractor.skills],
+    initial: homeowner.initial,
+    fullName: homeowner.fullName,
+    company: homeowner.company,
+    email: homeowner.email,
+    phone: homeowner.phone,
+    location: homeowner.location,
+    yearsExperience: homeowner.yearsExperience,
+    skills: [...homeowner.skills],
   })
   
   const portfolio = ref([
@@ -357,7 +357,7 @@
   ])
   
   function goFindProjects() {
-    router.push("/contractor/home")
+    router.push("/homeowner-home")
   }
   
   function logout() {
@@ -377,26 +377,26 @@
   }
   
   function saveProfile() {
-    contractor.initial = editForm.fullName ? editForm.fullName[0].toUpperCase() : "M"
-    contractor.fullName = editForm.fullName
-    contractor.company = editForm.company
-    contractor.email = editForm.email
-    contractor.phone = editForm.phone
-    contractor.location = editForm.location
-    contractor.yearsExperience = editForm.yearsExperience
-    contractor.skills = [...editForm.skills]
+    homeowner.initial = editForm.fullName ? editForm.fullName[0].toUpperCase() : "M"
+    homeowner.fullName = editForm.fullName
+    homeowner.company = editForm.company
+    homeowner.email = editForm.email
+    homeowner.phone = editForm.phone
+    homeowner.location = editForm.location
+    homeowner.yearsExperience = editForm.yearsExperience
+    homeowner.skills = [...editForm.skills]
     editing.value = false
   }
   
   function cancelEdit() {
-    editForm.initial = contractor.initial
-    editForm.fullName = contractor.fullName
-    editForm.company = contractor.company
-    editForm.email = contractor.email
-    editForm.phone = contractor.phone
-    editForm.location = contractor.location
-    editForm.yearsExperience = contractor.yearsExperience
-    editForm.skills = [...contractor.skills]
+    editForm.initial = homeowner.initial
+    editForm.fullName = homeowner.fullName
+    editForm.company = homeowner.company
+    editForm.email = homeowner.email
+    editForm.phone = homeowner.phone
+    editForm.location = homeowner.location
+    editForm.yearsExperience = homeowner.yearsExperience
+    editForm.skills = [...homeowner.skills]
     newSkill.value = ""
     editing.value = false
   }

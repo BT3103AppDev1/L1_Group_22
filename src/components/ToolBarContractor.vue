@@ -28,12 +28,12 @@ import { useRouter } from "vue-router"
 
 const router = useRouter()
 
-function goToProfile() {
-    router.push("/contractor/profile")
+function goToProfile() { 
+  router.push("/contractor/profile")
 }
 
 function goToHome() {
-  router.push("/contractor-home")
+  router.push("/contractor/home")
 }
   
 async function logout() {

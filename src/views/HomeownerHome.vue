@@ -1,5 +1,5 @@
 <template>
-    <ToolBarContractor/>
+    <ToolBar/>
     <div class="search-bar-wrapper">
       <div class="search-bar">
         <span class="search-icon">🔎</span>
@@ -89,8 +89,8 @@
                   </div>
   
                   <div class="job-meta-top">
-                    <span>👤 {{ job.homeownerName }}</span>
-                    <span v-if="job.homeownerRating">⭐ {{ job.homeownerRating }}</span>
+                    <span>👤 {{ job.contractorName }}</span>
+                    <span v-if="job.contractorRating">⭐ {{ job.contractorRating }}</span>
                   </div>
                 </div>
   
@@ -154,7 +154,7 @@
   import { getAuth } from "firebase/auth"
   import { collection, getDocs, orderBy, query } from "firebase/firestore"
   import { db } from "@/firebase"
-  import ToolBarContractor from "@/components/ToolBarContractor.vue"
+  import ToolBar from "@/components/ToolBar.vue"
   
   const router = useRouter()
   const auth = getAuth()
@@ -327,11 +327,11 @@
   }
   
   function sendProposal(job) {
-    router.push(`/contractor/send-proposal/${job.id}`)
+    router.push(`/homeowner/send-proposal/${job.id}`)
   }
   
   function viewDetails(job) {
-    router.push(`/contractor/job-details/${job.id}`)
+    router.push(`/homeowner/job-details/${job.id}`)
   }
   
   </script>
