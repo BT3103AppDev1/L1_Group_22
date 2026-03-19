@@ -6,7 +6,7 @@
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search jobs by title, category, or location..."
+          placeholder="Search contractor by name, specialty, or location..."
         />
       </div>
     </div>
@@ -18,16 +18,16 @@
             <button class="reset-btn" type="button" @click="resetFilters">Reset</button>
           </div>
   
-          <section class="filter-group">
+          <!-- <section class="filter-group">
             <h3>Status</h3>
             <label v-for="status in statusOptions" :key="status" class="checkbox-item">
               <input v-model="selectedStatuses" type="checkbox" :value="status" />
               <span>{{ status }}</span>
             </label>
-          </section>
+          </section> -->
   
           <section class="filter-group">
-            <h3>Category</h3>
+            <h3>Specialty</h3>
             <label v-for="category in categoryOptions" :key="category" class="checkbox-item">
               <input v-model="selectedCategories" type="checkbox" :value="category" />
               <span>{{ category }}</span>
@@ -41,14 +41,22 @@
               <span>{{ budget.label }}</span>
             </label>
           </section>
-  
+
           <section class="filter-group">
+            <!-- <h3>Verified Only</h3> -->
+            <label v-for="verified in verifiedOptions" :key="verified" class="checkbox-item">
+              <input v-model="selectedVerified" type="checkbox" :value="verified" />
+              <span>{{ verified }}</span>
+            </label>
+          </section>
+  
+          <!-- <section class="filter-group">
             <h3>Urgency</h3>
             <label v-for="urgency in urgencyOptions" :key="urgency" class="checkbox-item">
               <input v-model="selectedUrgencies" type="checkbox" :value="urgency" />
               <span>{{ urgency }}</span>
             </label>
-          </section>
+          </section> -->
         </aside>
   
         <section class="jobs-section">
@@ -169,17 +177,17 @@
   const selectedBudgets = ref([])
   const selectedUrgencies = ref([])
   
-  const statusOptions = ["New", "Invited", "Proposal Sent"]
+  // const statusOptions = ["New", "Invited", "Proposal Sent"]
   
   const categoryOptions = [
-    "Kitchen Renovation",
-    "Bathroom",
-    "Carpentry",
-    "Electrical",
-    "Painting",
-    "Plumbing",
-    "Flooring",
-    "General Renovation",
+    "General Contractor",
+    "Electtrician",
+    "Plumber",
+    "Carpenter",
+    "Painter",
+    "Roofer",
+    "HVAC Technician",
+    "Mason",
   ]
   
   const budgetOptions = [
@@ -190,6 +198,8 @@
   ]
   
   const urgencyOptions = ["Urgent", "Medium", "Flexible"]
+
+  const verifiedOptions = ["Verified Contractors Only"]
   
   onMounted(() => {
     getJobs()
@@ -249,13 +259,18 @@
           if (!range) return false
           return value >= range.min && value < range.max
         })
+
+      const matchVerified =
+        selectedVerified.value.length === 0 ||
+        selectedVerified.value.includes(job.verified)
   
       return (
         matchSearch &&
         matchStatus &&
         matchCategory &&
         matchUrgency &&
-        matchBudget
+        matchBudget &&
+        matchVerified
       )
     })
   })
