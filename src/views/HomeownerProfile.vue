@@ -37,6 +37,28 @@
                     </span>
                   </div>
                 </div>
+
+                <br><hr>
+
+                <div class="dashboard-numbers">
+                  <div class="dashboard-stat">
+                    <h1 style="color: blue;">3</h1>
+                    <div class="info-item">Total Projects</div>
+                  </div>
+                  <div class="dashboard-stat">
+                    <h1 style="color: green;">1</h1>
+                    <div class="info-item">Active</div>
+                  </div>
+                  <div class="dashboard-stat">
+                    <h1 style="color: red;">1</h1>
+                    <div class="info-item">In Progress</div>
+                  </div>
+                  
+                  <div class="dashboard-stat">
+                    <h1>0</h1>
+                    <div class="info-item">Completed</div>
+                  </div>
+                </div>
               </div>
   
               <div class="edit-wrap">
@@ -255,8 +277,8 @@
   const newSkill = ref("")
   
   const homeowner = reactive({
-    initial: "F",
-    fullName: "D'am Chutt",
+    initial: "D",
+    fullName: "Dom Nick",
     company: "Address here",
     rating: 4.8,
     reviewCount: 47,
@@ -352,7 +374,7 @@
       project: "Kitchen Renovation",
       date: "2/15/2024",
       comment:
-        "Excellent work! Michael and his team did an amazing job on our kitchen. Very professional and completed on time.",
+        "Understanding and Accommodating client, pleasure to work with",
     },
   ])
   
@@ -406,13 +428,19 @@
   * {
     box-sizing: border-box;
   }
+
+  .dashboard-numbers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    text-align: center;
+  }
   
-  .profile-page {
+  /* .profile-page { //dont know what this was used for -b-19/3
     min-height: 100vh;
     background: #f4f6f9;
     font-family: Arial, sans-serif;
     color: #1f2937;
-  }
+  } */
   
   .top-bar {
     background: linear-gradient(90deg, #1d5cff, #214bdf);
@@ -481,6 +509,7 @@
     max-width: 1100px;
     margin: 26px auto;
     padding: 0 18px 40px;
+    font-family: Arial, sans-serif;
   }
   
   .profile-card,
