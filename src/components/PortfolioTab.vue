@@ -139,5 +139,24 @@ const portfolio = ref([
     margin-bottom: 14px;
   }
 
+  .small-tag {
+    background: #f3f4f6;
+    color: #4b5563;
+    padding: 5px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  .full-outline-btn {
+    width: 100%;
+    border: 1px solid #2958ec;
+    color: #2958ec;
+    background: white;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
 
 </style>
