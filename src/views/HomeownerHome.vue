@@ -1,5 +1,5 @@
 <template>
-    <ToolBar/>
+    <ToolBarHomeowner/>
     <div class="search-bar-wrapper">
       <div class="search-bar">
         <span class="search-icon">🔎</span>
@@ -154,7 +154,7 @@
   import { getAuth } from "firebase/auth"
   import { collection, getDocs, orderBy, query } from "firebase/firestore"
   import { db } from "@/firebase"
-  import ToolBar from "@/components/ToolBar.vue"
+  import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   
   const router = useRouter()
   const auth = getAuth()
