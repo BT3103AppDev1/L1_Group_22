@@ -26,7 +26,7 @@
                   <div class="info-item">✉ {{ homeowner.email }}</div>
                   <div class="info-item">📞 {{ homeowner.phone }}</div>
                   <div class="info-item">📍 {{ homeowner.location }}</div>
-                  <div class="info-item">👤 {{ homeowner.yearsExperience }} years experience</div>
+                  <div class="info-item">👤 {{ homeowner.yearsExperience }} years on the app</div>
                 </div>
   
                 <div class="skills-section">
@@ -77,7 +77,7 @@
                   </div>
   
                   <div class="field">
-                    <label>Years of Experience</label>
+                    <label>Years on the app</label>
                     <input v-model="editForm.yearsExperience" type="number" />
                   </div>
                 </div>
@@ -122,14 +122,14 @@
               :class="{ active: activeTab === 'portfolio' }"
               @click="activeTab = 'portfolio'"
             >
-              Portfolio
+              My Projects
             </button>
             <button
               class="tab-btn"
               :class="{ active: activeTab === 'opportunities' }"
               @click="activeTab = 'opportunities'"
             >
-              Opportunities
+              Saved Contractors
             </button>
             <button
               class="tab-btn"
@@ -143,7 +143,7 @@
           <div class="tab-content">
             <div v-if="activeTab === 'portfolio'">
               <div class="section-header">
-                <h2>My Portfolio</h2>
+                <h2>My Projects</h2>
                 <button class="primary-btn">+ Add Project</button>
               </div>
   
@@ -172,8 +172,8 @@
             </div>
   
             <div v-if="activeTab === 'opportunities'">
-              <h2>Project Opportunities</h2>
-              <p class="subtext">Projects posted by homeowners looking for contractors</p>
+              <h2>Saved Contractors</h2>
+              <p class="subtext">Contractors you liked that may get back to you!</p>
   
               <div class="opportunity-list">
                 <div class="opportunity-card" v-for="job in opportunities" :key="job.id">
@@ -204,9 +204,9 @@
   
               <div class="review-summary">
                 <div class="score-box">
-                  <div class="big-score">{{ contractor.rating }}</div>
+                  <div class="big-score">{{ homeowner.rating }}</div>
                   <div class="stars">★★★★★</div>
-                  <div class="muted">{{ contractor.reviewCount }} reviews</div>
+                  <div class="muted">{{ homeowner.reviewCount }} reviews</div>
                 </div>
   
                 <div class="breakdown">
@@ -255,13 +255,13 @@
   const newSkill = ref("")
   
   const homeowner = reactive({
-    initial: "M",
-    fullName: "Samson Lim",
-    company: "Property Lim Brothers Renovation",
+    initial: "F",
+    fullName: "D'am Chutt",
+    company: "Address here",
     rating: 4.8,
     reviewCount: 47,
     projectsCompleted: 152,
-    email: "michael.tan@premiumreno.com",
+    email: "changgus@laif.com",
     phone: "+65 8234 5678",
     location: "Jurong West, Singapore",
     yearsExperience: 12,
