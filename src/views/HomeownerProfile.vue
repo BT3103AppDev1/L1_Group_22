@@ -1,274 +1,230 @@
 <template>
-    <ToolBarHomeowner/>
-      <div class="page-content">
-        <section class="profile-card">
-          <template v-if="!editing">
-            <div class="profile-top">
-              <div class="avatar">{{ homeowner.initial }}</div>
-  
-              <div class="profile-main">
-                <div class="name-row">
-                  <h1>{{ homeowner.fullName }}</h1>
-                  <span class="verified">✓</span>
-                </div>
-  
-                <p class="company">{{ homeowner.company }}</p>
-  
-                <div class="rating-row">
-                  <span class="star">★</span>
-                  <span>{{ homeowner.rating }}</span>
-                  <span class="muted">({{ homeowner.reviewCount }} reviews)</span>
-                  <span class="dot">•</span>
-                  <span class="muted">{{ homeowner.projectsCompleted }} projects completed</span>
-                </div>
-  
-                <div class="info-grid">
-                  <div class="info-item">✉ {{ homeowner.email }}</div>
-                  <div class="info-item">📞 {{ homeowner.phone }}</div>
-                  <div class="info-item">📍 {{ homeowner.location }}</div>
-                  <div class="info-item">👤 {{ homeowner.yearsExperience }} years on the app</div>
-                </div>
-  
-                <div class="skills-section">
-                  <div class="skills-title">Skills & Specializations</div>
-                  <div class="skill-list">
-                    <span v-for="skill in homeowner.skills" :key="skill" class="skill-pill">
-                      {{ skill }}
-                    </span>
-                  </div>
-                </div>
+  <ToolBarHomeowner/>
+    <div class="page-content">
+      <section class="profile-card">
+        <template v-if="!editing">
+          <div class="profile-top">
+            <div class="avatar">{{ homeowner.initial }}</div>
 
-                <br><hr>
+            <div class="profile-main">
+              <div class="name-row">
+                <h1>{{ homeowner.fullName }}</h1>
+                <span class="verified">✓</span>
+              </div>
 
-                <div class="dashboard-numbers">
-                  <div class="dashboard-stat">
-                    <h1 style="color: blue;">3</h1>
-                    <div class="info-item">Total Projects</div>
-                  </div>
-                  <div class="dashboard-stat">
-                    <h1 style="color: green;">1</h1>
-                    <div class="info-item">Active</div>
-                  </div>
-                  <div class="dashboard-stat">
-                    <h1 style="color: red;">1</h1>
-                    <div class="info-item">In Progress</div>
-                  </div>
-                  
-                  <div class="dashboard-stat">
-                    <h1>0</h1>
-                    <div class="info-item">Completed</div>
-                  </div>
+              <p class="company">{{ homeowner.company }}</p>
+
+              <div class="rating-row">
+                <span class="star">★</span>
+                <span>{{ homeowner.rating }}</span>
+                <span class="muted">({{ homeowner.reviewCount }} reviews)</span>
+                <span class="dot">•</span>
+                <span class="muted">{{ homeowner.projectsCompleted }} projects completed</span>
+              </div>
+
+              <div class="info-grid">
+                <div class="info-item">✉ {{ homeowner.email }}</div>
+                <div class="info-item">📞 {{ homeowner.phone }}</div>
+                <div class="info-item">📍 {{ homeowner.location }}</div>
+                <div class="info-item">👤 {{ homeowner.yearsExperience }} years on the app</div>
+              </div>
+
+              <div class="skills-section">
+                <div class="skills-title">Skills & Specializations</div>
+                <div class="skill-list">
+                  <span v-for="skill in homeowner.skills" :key="skill" class="skill-pill">
+                    {{ skill }}
+                  </span>
                 </div>
               </div>
-  
-              <div class="edit-wrap">
-                <button class="outline-btn" @click="editing = true">Edit Profile</button>
-              </div>
-            </div>
-          </template>
-  
-          <template v-else>
-            <div class="edit-layout">
-              <div class="avatar">{{ editForm.initial }}</div>
-  
-              <div class="edit-main">
-                <div class="form-grid">
-                  <div class="field">
-                    <label>Full Name</label>
-                    <input v-model="editForm.fullName" type="text" />
-                  </div>
-  
-                  <div class="field">
-                    <label>Company Name</label>
-                    <input v-model="editForm.company" type="text" />
-                  </div>
-  
-                  <div class="field">
-                    <label>Email</label>
-                    <input v-model="editForm.email" type="text" />
-                  </div>
-  
-                  <div class="field">
-                    <label>Phone</label>
-                    <input v-model="editForm.phone" type="text" />
-                  </div>
-  
-                  <div class="field">
-                    <label>Location</label>
-                    <input v-model="editForm.location" type="text" />
-                  </div>
-  
-                  <div class="field">
-                    <label>Years on the app</label>
-                    <input v-model="editForm.yearsExperience" type="number" />
-                  </div>
+
+              <br><hr>
+
+              <div class="dashboard-numbers">
+                <div class="dashboard-stat">
+                  <h1 style="color: blue;">3</h1>
+                  <div class="info-item">Total Projects</div>
                 </div>
-  
-                <div class="skill-editor">
-                  <label>Skills & Specializations</label>
-                  <div class="add-skill-row">
-                    <input
-                      v-model="newSkill"
-                      type="text"
-                      placeholder="Add new skill"
-                      @keyup.enter="addSkill"
-                    />
-                    <button class="square-btn" @click="addSkill">+</button>
-                  </div>
-  
-                  <div class="skill-list editable-skills">
-                    <span
-                      v-for="(skill, index) in editForm.skills"
-                      :key="skill + index"
-                      class="skill-pill"
-                    >
-                      {{ skill }}
-                      <button class="remove-skill" @click="removeSkill(index)">×</button>
-                    </span>
-                  </div>
+                <div class="dashboard-stat">
+                  <h1 style="color: green;">1</h1>
+                  <div class="info-item">Active</div>
                 </div>
-  
-                <div class="edit-actions">
-                  <button class="save-btn" @click="saveProfile">Save Changes</button>
-                  <button class="cancel-btn" @click="cancelEdit">Cancel</button>
+                <div class="dashboard-stat">
+                  <h1 style="color: red;">1</h1>
+                  <div class="info-item">In Progress</div>
+                </div>
+                
+                <div class="dashboard-stat">
+                  <h1>0</h1>
+                  <div class="info-item">Completed</div>
                 </div>
               </div>
             </div>
-          </template>
-        </section>
-  
-        <section class="content-card">
-          <div class="tabs">
-            <button
-              class="tab-btn"
-              :class="{ active: activeTab === 'portfolio' }"
-              @click="activeTab = 'portfolio'"
-            >
-              My Projects
-            </button>
-            <button
-              class="tab-btn"
-              :class="{ active: activeTab === 'opportunities' }"
-              @click="activeTab = 'opportunities'"
-            >
-              Saved Contractors
-            </button>
-            <button
-              class="tab-btn"
-              :class="{ active: activeTab === 'reviews' }"
-              @click="activeTab = 'reviews'"
-            >
-              Reviews
-            </button>
+
+            <div class="edit-wrap">
+              <button class="outline-btn" @click="editing = true">Edit Profile</button>
+            </div>
           </div>
-  
-          <div class="tab-content">
-            <div v-if="activeTab === 'portfolio'">
-              <div class="section-header">
-                <h2>My Projects</h2>
-                <button class="primary-btn">+ Add Project</button>
-              </div>
-  
-              <div class="portfolio-grid">
-                <div class="project-card" v-for="project in portfolio" :key="project.id">
-                  <img :src="project.image" :alt="project.title" class="project-image" />
-  
-                  <div class="project-body">
-                    <div class="project-title-row">
-                      <h3>{{ project.title }}</h3>
-                      <span class="price-mark">{{ project.priceRange }}</span>
-                    </div>
-  
-                    <p class="project-desc">{{ project.description }}</p>
-  
-                    <div class="project-tags">
-                      <span class="small-tag">{{ project.category }}</span>
-                      <span class="small-tag">{{ project.location }}</span>
-                      <span class="small-tag">{{ project.date }}</span>
-                    </div>
-  
-                    <button class="full-outline-btn">Edit Project</button>
-                  </div>
+        </template>
+
+        <template v-else>
+          <div class="edit-layout">
+            <div class="avatar">{{ editForm.initial }}</div>
+
+            <div class="edit-main">
+              <div class="form-grid">
+                <div class="field">
+                  <label>Full Name</label>
+                  <input v-model="editForm.fullName" type="text" />
+                </div>
+
+                <div class="field">
+                  <label>Company Name</label>
+                  <input v-model="editForm.company" type="text" />
+                </div>
+
+                <div class="field">
+                  <label>Email</label>
+                  <input v-model="editForm.email" type="text" />
+                </div>
+
+                <div class="field">
+                  <label>Phone</label>
+                  <input v-model="editForm.phone" type="text" />
+                </div>
+
+                <div class="field">
+                  <label>Location</label>
+                  <input v-model="editForm.location" type="text" />
+                </div>
+
+                <div class="field">
+                  <label>Years on the app</label>
+                  <input v-model="editForm.yearsExperience" type="number" />
                 </div>
               </div>
-            </div>
-  
-            <div v-if="activeTab === 'opportunities'">
-              <h2>Saved Contractors</h2>
-              <p class="subtext">Contractors you liked that may get back to you!</p>
-  
-              <div class="opportunity-list">
-                <div class="opportunity-card" v-for="job in opportunities" :key="job.id">
-                  <div class="opportunity-top">
-                    <div>
-                      <h3>{{ job.title }}</h3>
-                      <p class="subtext">Posted by {{ job.contractor }}</p>
-                      <div class="opportunity-meta">
-                        <span>📍 {{ job.location }}</span>
-                        <span>{{ job.budget }}</span>
-                        <span>Posted {{ job.date }}</span>
-                      </div>
-                    </div>
-  
-                    <span class="status-badge">{{ job.status }}</span>
-                  </div>
-  
-                  <div class="opportunity-actions">
-                    <button class="primary-btn small-btn">Send Proposal</button>
-                    <button class="secondary-btn small-btn">View Details</button>
-                  </div>
+
+              <div class="skill-editor">
+                <label>Skills & Specializations</label>
+                <div class="add-skill-row">
+                  <input
+                    v-model="newSkill"
+                    type="text"
+                    placeholder="Add new skill"
+                    @keyup.enter="addSkill"
+                  />
+                  <button class="square-btn" @click="addSkill">+</button>
+                </div>
+
+                <div class="skill-list editable-skills">
+                  <span
+                    v-for="(skill, index) in editForm.skills"
+                    :key="skill + index"
+                    class="skill-pill"
+                  >
+                    {{ skill }}
+                    <button class="remove-skill" @click="removeSkill(index)">×</button>
+                  </span>
                 </div>
               </div>
-            </div>
-  
-            <div v-if="activeTab === 'reviews'">
-              <h2>Client Reviews</h2>
-  
-              <div class="review-summary">
-                <div class="score-box">
-                  <div class="big-score">{{ homeowner.rating }}</div>
-                  <div class="stars">★★★★★</div>
-                  <div class="muted">{{ homeowner.reviewCount }} reviews</div>
-                </div>
-  
-                <div class="breakdown">
-                  <div v-for="row in reviewBreakdown" :key="row.stars" class="bar-row">
-                    <span class="bar-label">{{ row.stars }} ★</span>
-                    <div class="bar-track">
-                      <div class="bar-fill" :style="{ width: row.percent + '%' }"></div>
-                    </div>
-                    <span class="bar-percent">{{ row.percent }}%</span>
-                  </div>
-                </div>
-              </div>
-  
-              <div class="review-list">
-                <div class="review-card" v-for="review in reviews" :key="review.id">
-                  <div class="review-card-top">
-                    <div>
-                      <h3>{{ review.name }}</h3>
-                      <p class="subtext">{{ review.project }}</p>
-                    </div>
-  
-                    <div class="review-right">
-                      <div class="review-stars">★★★★★</div>
-                      <div class="review-date">{{ review.date }}</div>
-                    </div>
-                  </div>
-  
-                  <p class="review-text">{{ review.comment }}</p>
-                </div>
+
+              <div class="edit-actions">
+                <button class="save-btn" @click="saveProfile">Save Changes</button>
+                <button class="cancel-btn" @click="cancelEdit">Cancel</button>
               </div>
             </div>
           </div>
-        </section>
-      </div>
-  </template>
+        </template>
+      </section>
+
+      <section class="content-card">
+        <div class="tabs">
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'portfolio' }"
+            @click="activeTab = 'portfolio'"
+          >
+            My Projects
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'opportunities' }"
+            @click="activeTab = 'opportunities'"
+          >
+            Saved Contractors
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'reviews' }"
+            @click="activeTab = 'reviews'"
+          >
+            Reviews
+          </button>
+        </div>
+
+        <div class="tab-content">
+          <div v-if="activeTab === 'portfolio'">
+            <ProjectsTab/>
+            
+          </div>
+
+          <div v-if="activeTab === 'opportunities'">
+            <SavedContractorsTab/>
+            
+          </div>
+
+          <div v-if="activeTab === 'reviews'">
+            <ReviewsTab/>
+            <!-- <h2>Client Reviews</h2>
+
+            <div class="review-summary">
+              <div class="score-box">
+                <div class="big-score">{{ homeowner.rating }}</div>
+                <div class="stars">★★★★★</div>
+                <div class="muted">{{ homeowner.reviewCount }} reviews</div>
+              </div>
+
+              <div class="breakdown">
+                <div v-for="row in reviewBreakdown" :key="row.stars" class="bar-row">
+                  <span class="bar-label">{{ row.stars }} ★</span>
+                  <div class="bar-track">
+                    <div class="bar-fill" :style="{ width: row.percent + '%' }"></div>
+                  </div>
+                  <span class="bar-percent">{{ row.percent }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="review-list">
+              <div class="review-card" v-for="review in reviews" :key="review.id">
+                <div class="review-card-top">
+                  <div>
+                    <h3>{{ review.name }}</h3>
+                    <p class="subtext">{{ review.project }}</p>
+                  </div>
+
+                  <div class="review-right">
+                    <div class="review-stars">★★★★★</div>
+                    <div class="review-date">{{ review.date }}</div>
+                  </div>
+                </div>
+
+                <p class="review-text">{{ review.comment }}</p>
+              </div>
+            </div> -->
+          </div>
+        </div>
+      </section>
+    </div>
+</template>
   
-  <script setup>
+<script setup>
   import { reactive, ref } from "vue"
   import { useRouter } from "vue-router"
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
+  import ProjectsTab from "../components/ProjectsTab.vue"
+  // import SavedContractorsTab from "../components/SavedContractorsTab.vue"
+  import ReviewsTab from "@/components/ReviewsTab.vue"
   
   const router = useRouter()
   
@@ -307,57 +263,6 @@
     yearsExperience: homeowner.yearsExperience,
     skills: [...homeowner.skills],
   })
-  
-  const portfolio = ref([
-    {
-      id: 1,
-      title: "Modern Kitchen Renovation",
-      description:
-        "Complete kitchen transformation with custom cabinets, quartz countertops, and modern appliances.",
-      category: "Kitchen Renovation",
-      location: "Bishan",
-      date: "Jan 2024",
-      priceRange: "$$$",
-      image:
-        "https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      id: 2,
-      title: "Master Bathroom Remodel",
-      description:
-        "Luxury bathroom renovation featuring walk-in shower, double vanity, and heated floors.",
-      category: "Bathroom",
-      location: "Tampines",
-      date: "Dec 2023",
-      priceRange: "$$$$",
-      image:
-        "https://images.unsplash.com/photo-1620626011761-996317b8d101?auto=format&fit=crop&w=1200&q=80",
-    },
-    {
-      id: 3,
-      title: "Living Room Makeover",
-      description:
-        "Updated the living space with new flooring, repainting, lighting, and built-in storage.",
-      category: "General Renovation",
-      location: "Orchard",
-      date: "Nov 2023",
-      priceRange: "$$$",
-      image:
-        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
-    },
-  ])
-  
-  const opportunities = ref([
-    {
-      id: 1,
-      title: "Kitchen Renovation Needed",
-      homeowner: "Sarah Johnson",
-      location: "Bishan",
-      budget: "$$$",
-      date: "2/20/2024",
-      status: "New",
-    },
-  ])
   
   const reviewBreakdown = ref([
     { stars: 5, percent: 75 },
@@ -661,14 +566,14 @@
     padding: 28px;
   }
   
-  .section-header {
+  /* .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 22px;
   }
   
-  .section-header h2,
+  .section-header h2, */
   .tab-content h2 {
     margin: 0 0 10px;
     font-size: 20px;
@@ -779,52 +684,9 @@
     margin-top: 0;
   }
   
-  .opportunity-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 18px;
-  }
   
-  .opportunity-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 22px;
-  }
   
-  .opportunity-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: start;
-  }
   
-  .opportunity-top h3 {
-    margin: 0 0 8px;
-  }
-  
-  .opportunity-meta {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    color: #4b5563;
-    margin-top: 10px;
-  }
-  
-  .status-badge {
-    background: #dcfce7;
-    color: #15803d;
-    border-radius: 999px;
-    padding: 7px 12px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  
-  .opportunity-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 18px;
-  }
   
   .review-summary {
     background: #f8fafc;

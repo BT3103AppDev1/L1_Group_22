@@ -1,27 +1,27 @@
 <template>
     <div class="section-header">
-        <h2>My Portfolio</h2>
+        <h2>My Projects</h2>
         <button class="primary-btn">+ Add Project</button>
     </div>
-  
+
     <div class="portfolio-grid">
         <div class="project-card" v-for="project in portfolio" :key="project.id">
             <img :src="project.image" :alt="project.title" class="project-image" />
-  
+
             <div class="project-body">
                 <div class="project-title-row">
                     <h3>{{ project.title }}</h3>
                     <span class="price-mark">{{ project.priceRange }}</span>
                 </div>
-  
+
                 <p class="project-desc">{{ project.description }}</p>
-  
+
                 <div class="project-tags">
                     <span class="small-tag">{{ project.category }}</span>
                     <span class="small-tag">{{ project.location }}</span>
                     <span class="small-tag">{{ project.date }}</span>
                 </div>
-  
+
                 <button class="full-outline-btn">Edit Project</button>
             </div>
         </div>
@@ -84,6 +84,7 @@ const portfolio = ref([
     align-items: center;
     margin-bottom: 22px;
   }
+
   .section-header h2{
     margin: 0 0 10px;
     font-size: 20px;

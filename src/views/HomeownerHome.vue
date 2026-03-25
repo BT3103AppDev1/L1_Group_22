@@ -181,7 +181,7 @@
   
   const categoryOptions = [
     "General Contractor",
-    "Electtrician",
+    "Electrician",
     "Plumber",
     "Carpenter",
     "Painter",

@@ -1,5 +1,5 @@
 <template>
-    <h2>Client Reviews</h2>
+    <h2>Reviews from other users</h2>
   
     <div class="review-summary">
         <div class="score-box">

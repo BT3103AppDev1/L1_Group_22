@@ -257,6 +257,7 @@
     max-width: 1100px;
     margin: 26px auto;
     padding: 0 18px 40px;
+    font-family: Arial, sans-serif;
   }
   
   .profile-card,
@@ -408,14 +409,14 @@
     padding: 28px;
   }
   
-  .section-header {
+  /* .section-header { //see portfolio/projects tab
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 22px;
   }
   
-  .section-header h2,
+  .section-header h2, */
   .tab-content h2 {
     margin: 0 0 10px;
     font-size: 20px;
