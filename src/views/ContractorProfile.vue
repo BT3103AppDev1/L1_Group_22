@@ -158,12 +158,14 @@
   </template>
   
   <script setup>
-  import { reactive, ref } from "vue"
+  import { onMounted, reactive, ref } from "vue"
   import { useRouter } from "vue-router"
   import ToolBarContractor from "@/components/ToolBarContractor.vue"
   import PortfolioTab from "@/components/PortfolioTab.vue"
   import OpportunitiesTab from "@/components/OpportunitiesTab.vue"
   import ReviewsTab from "@/components/ReviewsTab.vue"
+  import { auth, db } from "@/firebase.js"
+  import { doc, getDoc, setDoc } from "firebase/firestore"
   
   const router = useRouter()
   
@@ -172,25 +174,18 @@
   const newSkill = ref("")
   
   const contractor = reactive({
-    initial: "M",
-    fullName: "Samson Lim",
-    company: "Property Lim Brothers Renovation",
-    rating: 4.8,
-    reviewCount: 47,
-    projectsCompleted: 152,
-    email: "michael.tan@premiumreno.com",
-    phone: "+65 8234 5678",
-    location: "Jurong West, Singapore",
-    yearsExperience: 12,
-    skills: [
-      "Kitchen Renovation",
-      "Bathroom Remodeling",
-      "Carpentry",
-      "Flooring",
-      "Painting",
-      "Electrical Work",
-    ],
-  })
+  initial: "M",
+  fullName: "",
+  company: "",
+  rating: 4.8,
+  reviewCount: 47,
+  projectsCompleted: 152,
+  email: "",
+  phone: "",
+  location: "",
+  yearsExperience: 0,
+  skills: [],
+})
   
   const editForm = reactive({
     initial: contractor.initial,
@@ -202,6 +197,48 @@
     yearsExperience: contractor.yearsExperience,
     skills: [...contractor.skills],
   })
+
+  function syncEditForm() {
+  editForm.initial = contractor.initial
+  editForm.fullName = contractor.fullName
+  editForm.company = contractor.company
+  editForm.email = contractor.email
+  editForm.phone = contractor.phone
+  editForm.location = contractor.location
+  editForm.yearsExperience = contractor.yearsExperience
+  editForm.skills = [...contractor.skills]
+}
+
+async function loadContractorProfile() {
+  try {
+    const user = auth.currentUser
+    if (!user) return
+
+    const userRef = doc(db, "users", user.uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) return
+
+    const data = userSnap.data()
+
+    if (data.userType !== "contractor") return
+
+    contractor.fullName = data.fullName || ""
+    contractor.company = data.company || ""
+    contractor.email = data.email || user.email || ""
+    contractor.phone = data.phone || ""
+    contractor.location = data.location || ""
+    contractor.yearsExperience = data.yearsExperience || 0
+    contractor.skills = data.skills || []
+    contractor.initial = contractor.fullName
+      ? contractor.fullName.charAt(0).toUpperCase()
+      : "M"
+
+    syncEditForm()
+  } catch (error) {
+    console.error("Error loading contractor profile:", error)
+  }
+}
   
   function addSkill() {
     const skill = newSkill.value.trim()
@@ -215,17 +252,49 @@
     editForm.skills.splice(index, 1)
   }
   
-  function saveProfile() {
-    contractor.initial = editForm.fullName ? editForm.fullName[0].toUpperCase() : "M"
+  async function saveProfile() {
+  try {
+    const user = auth.currentUser
+    if (!user) return
+
+    const userRef = doc(db, "users", user.uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) return
+
+    const data = userSnap.data()
+    if (data.userType !== "contractor") return
+
+    await setDoc(
+      userRef,
+      {
+        fullName: editForm.fullName,
+        company: editForm.company,
+        email: editForm.email,
+        phone: editForm.phone,
+        location: editForm.location,
+        yearsExperience: Number(editForm.yearsExperience),
+        skills: [...editForm.skills],
+      },
+      { merge: true }
+    )
+
     contractor.fullName = editForm.fullName
     contractor.company = editForm.company
     contractor.email = editForm.email
     contractor.phone = editForm.phone
     contractor.location = editForm.location
-    contractor.yearsExperience = editForm.yearsExperience
+    contractor.yearsExperience = Number(editForm.yearsExperience)
     contractor.skills = [...editForm.skills]
+    contractor.initial = contractor.fullName
+      ? contractor.fullName.charAt(0).toUpperCase()
+      : "M"
+
     editing.value = false
+  } catch (error) {
+    console.error("Error saving contractor profile:", error)
   }
+}
   
   function cancelEdit() {
     editForm.initial = contractor.initial
@@ -239,6 +308,9 @@
     newSkill.value = ""
     editing.value = false
   }
+  onMounted(() => {
+  loadContractorProfile()
+})
   </script>
   
   <style scoped>
