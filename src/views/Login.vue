@@ -166,7 +166,7 @@ const handleSubmit = async () => {
 
     console.log('Logged in user:', userCredential.user)
     if (userType.value === 'contractor') {
-      router.push('/contractor-home')
+      router.push('/contractor/home')
     } else {
       router.push('/dashboard')
     }
