@@ -168,7 +168,7 @@ const handleSubmit = async () => {
     if (userType.value === 'contractor') {
       router.push('/contractor/home')
     } else {
-      router.push('/dashboard')
+      router.push('/homeowner/home')
     }
     
   } catch (error) {

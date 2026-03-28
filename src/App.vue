@@ -12,7 +12,7 @@
 
   .app-wrapper,
   html,
-  body {
+  :global(body) {
     margin: 0;
     padding: 0;
     height: 100%;
