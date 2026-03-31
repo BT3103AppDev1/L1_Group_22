@@ -369,7 +369,6 @@
     align-items: center;
     padding: 0 14px;
     height: 42px;
-    max-width: 1160px;
   }
   
   .search-icon {
@@ -412,6 +411,7 @@
   .filters-header h2 {
     margin: 0;
     font-size: 20px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
   
   .reset-btn {
@@ -424,6 +424,7 @@
   
   .filter-group {
     margin-bottom: 28px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
   
   .filter-group h3 {
@@ -461,6 +462,7 @@
     font-size: 18px;
     font-weight: 600;
     margin: 0;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
   
   .job-list {
