@@ -86,6 +86,15 @@
           >
             {{ isLoading ? "Signing in..." : "Sign In" }}
           </button>
+          <button 
+            type="button"
+            @click="signInWithGoogle"
+            class="google-btn"
+            :disabled="isLoading"
+          >
+            <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_18dp.png" alt="Google" />
+            Sign in with Google
+          </button>
         </form>
 
         <!-- Sign Up link -->
@@ -112,9 +121,9 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff } from 'lucide-vue-next'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/firebase'
-import { getFirestore, doc, getDoc } from 'firebase/firestore'
-import { getAuth, signOut } from "firebase/auth"
+import { auth, googleProvider } from '@/firebase'
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
+import { getAuth, signOut, signInWithPopup } from "firebase/auth"
 
 const db = getFirestore()
 const router = useRouter()
@@ -184,6 +193,58 @@ const handleSubmit = async () => {
 const navigate = (path) => {
   router.push(path)
 }
+
+const signInWithGoogle = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const result = await signInWithPopup(auth, googleProvider)
+    const user = result.user
+
+    // Check if user exists in Firestore
+    const userDocRef = doc(db, 'users', user.uid)
+    const userDocSnap = await getDoc(userDocRef)
+
+    if (!userDocSnap.exists()) {
+      // First-time Google login → create profile
+      await setDoc(userDocRef, {
+        fullName: user.displayName || '',
+        username: user.email?.split('@')[0] || '', // or generate better username
+        email: user.email,
+        userType: userType.value,        // Use the selected toggle (homeowner/contractor)
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+        authProvider: 'google'
+      })
+    } else {
+      // Existing user - check if userType matches selection
+      const userData = userDocSnap.data()
+      if (userData.userType !== userType.value) {
+        await signOut(auth)
+        errorMessage.value = `This account is registered as a ${userData.userType}.\nPlease select the correct type.`
+        return
+      }
+    }
+
+    // Redirect based on user type
+    if (userType.value === 'contractor') {
+      router.push('/contractor/home')
+    } else {
+      router.push('/homeowner/home')
+    }
+
+  } catch (error) {
+    console.error(error)
+    errorMessage.value = error.message.includes('popup-closed-by-user') 
+      ? 'Sign in was cancelled' 
+      : 'Failed to sign in with Google'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+
 
 </script>
 
@@ -412,4 +473,31 @@ const navigate = (path) => {
       border-radius: 0.375rem;
       white-space: pre-line;
     }
+
+    .google-btn {
+  width: 100%;
+  height: 3rem;
+  margin-top: 0.5rem;
+  background: white;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.google-btn:hover {
+  background: #f8f9fa;
+  border-color: #c6c6c6;
+}
+
+.google-btn img {
+  width: 18px;
+  height: 18px;
+}
 </style>

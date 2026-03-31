@@ -2,7 +2,7 @@
     <div class="home">
       <header class="top-header">
         <div class="logo-section">
-          <img src="@/assets/reliabuild_logo.jpg" alt="Reliabuild Logo" class="logo-image" />
+          <img src="@/assets/reliabuild_logo3.png" alt="Reliabuild Logo" class="logo-image" />
           <div class="logo-text">Reliabuild</div>
         </div>
   
@@ -25,6 +25,7 @@
 <script setup>
 import { signOut } from "firebase/auth"
 import { useRouter } from "vue-router"
+import { auth } from '@/firebase'
 
 const router = useRouter()
 
@@ -66,14 +67,15 @@ async function logout() {
 .logo-section {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
 }
   
 .logo-image {
-    width: 36px;
-    height: 36px;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
     display: block;
+    margin-bottom: 10px;
 }
   
 .logo-text {

@@ -123,6 +123,15 @@
         >
           {{ isLoading ? "Creating account..." : "Sign Up" }}
         </button>
+        <button 
+          type="button"
+          @click="signUpWithGoogle"
+          class="google-btn"
+          :disabled="isLoading"
+        >
+          <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_18dp.png" alt="Google" />
+          Sign Up with Google
+        </button>
       </form>
 
       <div class="signup-section">
@@ -146,8 +155,9 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Eye, EyeOff } from 'lucide-vue-next'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth } from '@/firebase'  // adjust path if needed
-import { getFirestore, doc, setDoc } from 'firebase/firestore'
+import { auth, googleProvider } from '@/firebase'  // adjust path if needed
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
+import { signInWithPopup } from 'firebase/auth'
 
 const router = useRouter()
 const db = getFirestore()
@@ -236,6 +246,41 @@ const handleSignup = async () => {
 const navigate = (path) => {
   router.push(path)
 }
+
+const signUpWithGoogle = async () => {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const result = await signInWithPopup(auth, googleProvider)
+    const user = result.user
+
+    const userDocRef = doc(db, 'users', user.uid)
+    const exists = (await getDoc(userDocRef)).exists()
+
+    if (!exists) {
+      await setDoc(userDocRef, {
+        fullName: user.displayName || '',
+        username: user.email?.split('@')[0] || `user_${Date.now()}`,
+        email: user.email,
+        userType: userType.value,
+        photoURL: user.photoURL,
+        createdAt: new Date(),
+        authProvider: 'google'
+      })
+    }
+
+    router.push(userType.value === 'contractor' ? '/contractor/home' : '/homeowner/home')
+
+  } catch (error) {
+    console.error(error)
+    errorMessage.value = 'Google sign up failed'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+
 </script>
 
 <style scoped>
@@ -470,5 +515,31 @@ const navigate = (path) => {
   margin-bottom: 0.25rem;
 }
 
+.google-btn {
+  width: 100%;
+  height: 3rem;
+  margin-top: 0.5rem;
+  background: white;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.google-btn:hover {
+  background: #f8f9fa;
+  border-color: #c6c6c6;
+}
+
+.google-btn img {
+  width: 18px;
+  height: 18px;
+}
 
 </style>
