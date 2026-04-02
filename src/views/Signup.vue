@@ -129,7 +129,7 @@
           class="google-btn"
           :disabled="isLoading"
         >
-          <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_18dp.png" alt="Google" />
+          <img src="../assets/google-logo.png" alt="Google" />
           Sign Up with Google
         </button>
       </form>
@@ -284,6 +284,9 @@ const signUpWithGoogle = async () => {
 </script>
 
 <style scoped>
+  * { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
 
 .container {
         background: #eff6ff;
