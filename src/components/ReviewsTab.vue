@@ -1,46 +1,51 @@
 <template>
-    <h2>Reviews from other users</h2>
-  
-    <div class="review-summary">
-        <div class="score-box">
-            <div class="big-score">{{ contractor.rating }}</div>
-                <div class="stars">★★★★★</div>
-                <div class="muted">{{ contractor.reviewCount }} reviews</div>
-                </div>
-  
-                <div class="breakdown">
-                  <div v-for="row in reviewBreakdown" :key="row.stars" class="bar-row">
-                    <span class="bar-label">{{ row.stars }} ★</span>
-                    <div class="bar-track">
-                    <div class="bar-fill" :style="{ width: row.percent + '%' }"></div>
-                    </div>
-                    <span class="bar-percent">{{ row.percent }}%</span>
-                  </div>
-                </div>
-            </div>
-  
-            <div class="review-list">
-                <div class="review-card" v-for="review in reviews" :key="review.id">
-                <div class="review-card-top">
-                    <div>
-                      <h3>{{ review.name }}</h3>
-                      <p class="subtext">{{ review.project }}</p>
-                    </div>
-  
-                    <div class="review-right">
-                    <div class="review-stars">★★★★★</div>
-                    <div class="review-date">{{ review.date }}</div>
-                </div>
-            </div>
-  
-            <p class="review-text">{{ review.comment }}</p>
-        </div>
+  <h2>Reviews from Homeowners</h2>
+
+  <div class="review-summary">
+    <div class="score-box">
+      <div class="big-score">{{ contractor.rating }}</div>
+      <div class="stars">★★★★★</div>
+      <div class="muted">{{ contractor.reviewCount }} reviews</div>
     </div>
-            
+
+    <div class="breakdown">
+      <div v-for="row in reviewBreakdown" :key="row.stars" class="bar-row">
+        <span class="bar-label">{{ row.stars }} ★</span>
+        <div class="bar-track">
+          <div class="bar-fill" :style="{ width: row.percent + '%' }"></div>
+        </div>
+        <span class="bar-percent">{{ row.percent }}%</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="review-list">
+      <!-- <div class="review-card" v-for="review in reviews" :key="review.id"> -->
+    <ReviewCard
+      v-for="review in reviews"
+      :key="review.id"
+      :review="review"
+    />
+        <!-- <div class="review-card-top">
+          <div>
+            <h3>{{ review.name }}</h3>
+            <p class="subtext">{{ review.project }}</p>
+          </div>
+
+          <div class="review-right">
+            <div class="review-stars">★★★★★</div>
+            <div class="review-date">{{ review.date }}</div>
+          </div>
+        </div>
+
+        <p class="review-text">{{ review.comment }}</p>
+      </div> -->
+  </div>      
 </template>
 
 <script setup>
-import { reactive, ref } from "vue"
+import { reactive, ref, onMounted } from "vue"
+import ReviewCard from "@/components/ReviewCard.vue"
 
 const contractor = reactive({
     initial: "M",
@@ -74,15 +79,69 @@ const reviewBreakdown = ref([
 const reviews = ref([
     {
       id: 1,
-      name: "Sarah Johnson",
-      project: "Kitchen Renovation",
-      date: "2/15/2024",
+      reviewerId: "Sarah Johnson",
+      projectTitle: "Kitchen Renovation",
+      createdAt: "2/15/2024",
+      rating: 4,
       comment:
         "Excellent work! Michael and his team did an amazing job on our kitchen. Very professional and completed on time.",
     },
 ])
 
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore"
+import { auth, db } from "@/firebase.js"
 
+const errorMessage = ref("")
+
+async function loadReviews() {
+  try {
+    // loading.value = true
+    errorMessage.value = ""
+
+    const user = auth.currentUser
+    if (!user) {
+      errorMessage.value = "No logged-in user found."
+      return
+    }
+
+    const userRef = doc(db, "users", user.uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) {
+      errorMessage.value = "User profile not found."
+      return
+    }
+
+    // const userData = userSnap.data()
+
+    // if (userData.userType !== "homeowner") {
+    //   errorMessage.value = "Only homeowners can add reviews."
+    //   return
+    // }
+
+    const q = query(
+      collection(db, "customerReviews"),
+      where("targetId", "==", user.uid),
+      orderBy("createdAt", "desc")
+    )
+
+    const snapshot = await getDocs(q)
+
+    reviews.value = snapshot.docs.map((reviewDoc) => ({
+      id: reviewDoc.id,
+      ...reviewDoc.data(),
+    }))
+  } catch (error) {
+    console.error("Error submitting review:", error)
+    errorMessage.value = "Failed to submit review."
+  } finally {
+    // loading.value = false
+  }
+}
+
+onMounted(() => {
+  loadReviews()
+})
 </script>
 
 <style scoped>
@@ -155,45 +214,5 @@ const reviews = ref([
     gap: 16px;
   }
   
-  .review-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 20px;
-  }
   
-  .review-card-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 12px;
-  }
-  
-  .review-card-top h3 {
-    margin: 0;
-  }
-  
-  .review-right {
-    text-align: right;
-  }
-  
-  .review-stars {
-    color: #f6c400;
-    margin-bottom: 4px;
-  }
-  
-  .review-date {
-    color: #6b7280;
-    font-size: 14px;
-  }
-  
-  .review-text {
-    color: #374151;
-    line-height: 1.6;
-    margin: 0;
-  }
-
-  .subtext {
-    color: #6b7280;
-    margin-top: 0;
-  }
 </style>

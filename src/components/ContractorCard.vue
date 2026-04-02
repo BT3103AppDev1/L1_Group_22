@@ -51,6 +51,9 @@
         <button class="contact-btn" type="button" @click="$emit('contact', contractor)">
           Contact
         </button>
+
+        <ReviewButton :contractorId="contractor.id"/> <!-- remove and insert into chat function once ready -->
+
         <button class="profile-btn" type="button" @click="$emit('view-profile', contractor)">
           View Profile
         </button>
@@ -66,6 +69,7 @@ import starIcon from '@/assets/star-outline.svg'
 import locationIcon from '@/assets/location-outline.svg'
 import bagIcon from '@/assets/bag-outline.svg'
 import heartOutlineIcon from '@/assets/heart-outline.svg'
+import ReviewButton from '@/components/ReviewButton.vue' //remove and insert into chat function once ready
 
 const props = defineProps({
   contractor: {
