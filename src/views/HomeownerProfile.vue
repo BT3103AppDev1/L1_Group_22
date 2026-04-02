@@ -38,9 +38,9 @@
                 </div>
               </div>
 
-              <br><hr>
+              <!-- <br><hr> -->
 
-              <div class="dashboard-numbers">
+              <!-- <div class="dashboard-numbers">
                 <div class="dashboard-stat">
                   <h1 style="color: blue;">3</h1>
                   <div class="info-item">Total Projects</div>
@@ -58,7 +58,7 @@
                   <h1>0</h1>
                   <div class="info-item">Completed</div>
                 </div>
-              </div>
+              </div> -->
             </div>
 
             <div class="edit-wrap">
@@ -174,44 +174,8 @@
           </div>
 
           <div v-if="activeTab === 'reviews'">
-            <ReviewsTab/>
-            <!-- <h2>Client Reviews</h2>
+            <ReviewsTab/> <!-- change to ClientReviewTab once ready -->
 
-            <div class="review-summary">
-              <div class="score-box">
-                <div class="big-score">{{ homeowner.rating }}</div>
-                <div class="stars">★★★★★</div>
-                <div class="muted">{{ homeowner.reviewCount }} reviews</div>
-              </div>
-
-              <div class="breakdown">
-                <div v-for="row in reviewBreakdown" :key="row.stars" class="bar-row">
-                  <span class="bar-label">{{ row.stars }} ★</span>
-                  <div class="bar-track">
-                    <div class="bar-fill" :style="{ width: row.percent + '%' }"></div>
-                  </div>
-                  <span class="bar-percent">{{ row.percent }}%</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="review-list">
-              <div class="review-card" v-for="review in reviews" :key="review.id">
-                <div class="review-card-top">
-                  <div>
-                    <h3>{{ review.name }}</h3>
-                    <p class="subtext">{{ review.project }}</p>
-                  </div>
-
-                  <div class="review-right">
-                    <div class="review-stars">★★★★★</div>
-                    <div class="review-date">{{ review.date }}</div>
-                  </div>
-                </div>
-
-                <p class="review-text">{{ review.comment }}</p>
-              </div>
-            </div> -->
           </div>
         </div>
       </section>
@@ -223,7 +187,7 @@
   import { useRouter } from "vue-router"
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   import ProjectsTab from "../components/ProjectsTab.vue"
-  // import SavedContractorsTab from "../components/SavedContractorsTab.vue"
+  import SavedContractorsTab from "@/components/SavedContractorsTab.vue"
   import ReviewsTab from "@/components/ReviewsTab.vue"
   
   const router = useRouter()

@@ -92,8 +92,8 @@
             class="google-btn"
             :disabled="isLoading"
           >
-            <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_18dp.png" alt="Google" />
-            Sign in with Google
+            <img src="../assets/google-logo.png" alt="Google" />
+            Log in with Google
           </button>
         </form>
 
@@ -250,6 +250,9 @@ const signInWithGoogle = async () => {
 
 
 <style scoped>
+    * {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
     .container {
         background: #eff6ff;
         min-height: 100vh;

@@ -1,4 +1,3 @@
-```vue
 <template>
   <div class="section-header">
     <h2>My Portfolio</h2>
@@ -49,15 +48,61 @@
           </select>
         </div>
 
+        <!-- Image Upload Slots -->
         <div class="field">
-          <label>Image URL</label>
-          <input v-model="newProject.imageUrl" type="text" placeholder="Paste image URL" />
+          <label>Project Images</label>
+          <div class="image-upload-grid">
+            <div
+              v-for="index in 4"
+              :key="index"
+              class="upload-slot"
+              :class="{ 'has-image': uploadedImages[index - 1] }"
+              @click="triggerFileInput(index - 1)"
+            >
+              <!-- Preview -->
+              <template v-if="uploadedImages[index - 1]">
+                <img
+                  :src="uploadedImages[index - 1].preview"
+                  class="slot-preview"
+                  :alt="`Project image ${index}`"
+                />
+                <button
+                  class="remove-btn"
+                  type="button"
+                  @click.stop="removeImage(index - 1)"
+                >×</button>
+              </template>
+
+              <!-- Empty slot -->
+              <template v-else>
+                <div class="upload-placeholder">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" stroke="#9ca3af" stroke-width="1.5" viewBox="0 0 24 24">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="17 8 12 3 7 8"/>
+                    <line x1="12" y1="3" x2="12" y2="15"/>
+                  </svg>
+                  <span>Upload</span>
+                </div>
+              </template>
+
+              <!-- Hidden file input per slot -->
+              <input
+                :ref="el => fileInputs[index - 1] = el"
+                type="file"
+                accept="image/*"
+                class="hidden-input"
+                @change="onFileSelected($event, index - 1)"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="form-actions">
-        <button class="full-outline-btn" @click="closeForm">Cancel</button>
-        <button class="primary-btn" @click="saveNewProject">Save Project</button>
+        <button class="full-outline-btn" @click="closeForm" :disabled="uploading">Cancel</button>
+        <button class="primary-btn" @click="saveNewProject" :disabled="uploading">
+          {{ uploading ? 'Uploading...' : 'Save Project' }}
+        </button>
       </div>
     </div>
   </div>
@@ -98,7 +143,8 @@
 
 <script setup>
 import { onMounted, ref, reactive } from "vue"
-import { auth, db } from "@/firebase.js"
+import { auth, db, storage } from "@/firebase.js"
+import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"
 import {
   collection,
   query,
@@ -113,6 +159,7 @@ import {
 
 const portfolioProjects = ref([])
 const loading = ref(true)
+const uploading = ref(false)
 const errorMessage = ref("")
 const showAddForm = ref(false)
 
@@ -126,8 +173,36 @@ const newProject = reactive({
   location: "",
   dateLabel: "",
   priceTier: "",
-  imageUrl: "",
 })
+
+// Image upload state — 4 slots
+const uploadedImages = ref([null, null, null, null])
+const fileInputs = ref([])
+
+function triggerFileInput(index) {
+  fileInputs.value[index]?.click()
+}
+
+function onFileSelected(event, index) {
+  const file = event.target.files[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    uploadedImages.value[index] = {
+      file,
+      preview: e.target.result,
+    }
+  }
+  reader.readAsDataURL(file)
+
+  // Reset input so the same file can be re-selected if removed
+  event.target.value = ""
+}
+
+function removeImage(index) {
+  uploadedImages.value[index] = null
+}
 
 function resetForm() {
   newProject.title = ""
@@ -136,7 +211,7 @@ function resetForm() {
   newProject.location = ""
   newProject.dateLabel = ""
   newProject.priceTier = ""
-  newProject.imageUrl = ""
+  uploadedImages.value = [null, null, null, null]
 }
 
 function closeForm() {
@@ -227,6 +302,26 @@ async function saveNewProject() {
       return
     }
 
+    // Upload all selected images to Firebase Storage and collect their download URLs
+    const filesToUpload = uploadedImages.value.filter((img) => img !== null)
+    let imageUrls = []
+
+    if (filesToUpload.length > 0) {
+      uploading.value = true
+      const uploadPromises = filesToUpload.map((img) => {
+        const filename = `${Date.now()}_${img.file.name}`
+        const fileRef = storageRef(storage, `portfolioImages/${user.uid}/${filename}`)
+        return uploadBytes(fileRef, img.file).then((snapshot) =>
+          getDownloadURL(snapshot.ref)
+        )
+      })
+      imageUrls = await Promise.all(uploadPromises)
+      uploading.value = false
+    }
+
+    // Use the first image as the primary imageUrl, store all in an array
+    const imageUrl = imageUrls[0] || fallbackImage
+
     await addDoc(collection(db, "portfolioProjects"), {
       contractorId: user.uid,
       title: newProject.title.trim(),
@@ -235,13 +330,15 @@ async function saveNewProject() {
       location: newProject.location.trim(),
       dateLabel: newProject.dateLabel.trim(),
       priceTier: newProject.priceTier.trim(),
-      imageUrl: newProject.imageUrl.trim() || fallbackImage,
+      imageUrl,
+      imageUrls,
       createdAt: serverTimestamp(),
     })
 
     closeForm()
     await loadPortfolioProjects()
   } catch (error) {
+    uploading.value = false
     console.error("Error saving new project:", error)
     errorMessage.value = "Failed to save project."
   }
@@ -377,6 +474,8 @@ onMounted(() => {
   border-radius: 16px;
   padding: 22px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -407,6 +506,12 @@ onMounted(() => {
   gap: 6px;
 }
 
+.field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
 .field input,
 .field textarea,
 .field select {
@@ -418,6 +523,77 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
+/* ── Image upload grid ── */
+.image-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.upload-slot {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  cursor: pointer;
+  overflow: hidden;
+  background: #f9fafb;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.upload-slot:hover {
+  border-color: #2958ec;
+  background: #eff4ff;
+}
+
+.upload-slot.has-image {
+  border-style: solid;
+  border-color: #e5e7eb;
+}
+
+.slot-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.remove-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  color: white;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.upload-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #9ca3af;
+  font-size: 13px;
+  user-select: none;
+}
+
+.hidden-input {
+  display: none;
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;
@@ -425,4 +601,3 @@ onMounted(() => {
   margin-top: 18px;
 }
 </style>
-```
