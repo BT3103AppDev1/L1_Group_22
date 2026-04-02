@@ -1,6 +1,3 @@
-import ContractorHome from '@/views/ContractorHome.vue'
-import HomeownerHome from '@/views/HomeownerHome.vue'
-
 import { createRouter, createWebHistory } from 'vue-router'
 
 const router = createRouter({
@@ -29,12 +26,17 @@ const router = createRouter({
   {
     path: '/homeowner/home',
     name: 'Homeowner Home',
-    component: HomeownerHome,
+    component: () => import('../views/HomeownerHome.vue')
   },
   {
     path: "/homeowner/profile",
     name: "Homeowner Profile",
     component: () => import("../views/HomeownerProfile.vue")
+  },
+  {
+    path: '/homeowner/chat',
+    name: 'Homeowner Chat',
+    component: () => import('../views/HomeownerChatPage.vue')
   },
 ]
 })

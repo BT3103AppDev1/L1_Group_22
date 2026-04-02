@@ -71,7 +71,7 @@ export default {
 .chat-room {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 51px);
+  height: calc(100vh - 80px);
   margin: auto;
   overflow: hidden;
 }
@@ -163,7 +163,7 @@ export default {
 }
 .send-button {
   padding: 10px 20px;
-  background: #28a745;
+  background: linear-gradient(90deg, #1f5eff, #1e49db);
   border: none;
   border-radius: 4px;
   color: white;
