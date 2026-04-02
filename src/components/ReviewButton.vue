@@ -90,7 +90,8 @@ async function submitReview() {
 
     const user = auth.currentUser
     if (!user) {
-      errorMessage.value = "No logged-in user found."
+      // errorMessage.value = "No logged-in user found."
+      alert("No logged-in user found.") //i dont understand the errorMessage (yet) so imma do this first
       return
     }
 
@@ -98,19 +99,22 @@ async function submitReview() {
     const userSnap = await getDoc(userRef)
 
     if (!userSnap.exists()) {
-      errorMessage.value = "User profile not found."
+      // errorMessage.value = "User profile not found."
+      alert("User profile not found.")
       return
     }
 
     const userData = userSnap.data()
 
     if (userData.userType !== "homeowner") {
-      errorMessage.value = "Only homeowners can add reviews."
+      // errorMessage.value = "Only homeowners can add reviews."
+      alert("Only homeowners can add reviews.")
       return
     }
 
     if (!review.rating || !review.comment.trim()) {
-      errorMessage.value = "Please fill in all required fields."
+      // errorMessage.value = "Please fill in all required fields."
+      alert("Please fill in all required fields.")
       return
     }
 

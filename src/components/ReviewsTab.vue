@@ -3,9 +3,12 @@
 
   <div class="review-summary">
     <div class="score-box">
-      <div class="big-score">{{ contractor.rating }}</div>
-      <div class="stars">★★★★★</div>
-      <div class="muted">{{ contractor.reviewCount }} reviews</div>
+      <!-- <div class="big-score">{{ contractor.rating }}</div> -->
+      <div class="big-score">{{ averageRating }}</div>
+      <!-- <div class="stars">★★★★★</div> -->
+      <div class="stars">{{ "★".repeat(Math.round(averageRating)) + "☆".repeat(5 - Math.round(averageRating)) }}</div>
+      <!-- <div class="muted">{{ contractor.reviewCount }} reviews</div> -->
+       <div class="muted">{{ reviewCount }} reviews</div>
     </div>
 
     <div class="breakdown">
@@ -68,18 +71,20 @@ const contractor = reactive({
     ],
 })
 
-const reviewBreakdown = ref([
-    { stars: 5, percent: 75 },
-    { stars: 4, percent: 20 },
-    { stars: 3, percent: 3 },
-    { stars: 2, percent: 1 },
-    { stars: 1, percent: 1 },
-])
+// const reviewBreakdown = ref([
+//     { stars: 5, percent: 75 },
+//     { stars: 4, percent: 20 },
+//     { stars: 3, percent: 3 },
+//     { stars: 2, percent: 1 },
+//     { stars: 1, percent: 1 },
+// ])
+
+// const reviews = ref([]) //use this once all is well
   
-const reviews = ref([
+const reviews = ref([ //placeholder that becomes overridden if contractor is logged in. replace with above once everything is sorted
     {
       id: 1,
-      reviewerId: "Sarah Johnson",
+      reviewerId: "Sarah Placeholder",
       projectTitle: "Kitchen Renovation",
       createdAt: "2/15/2024",
       rating: 4,
@@ -87,6 +92,37 @@ const reviews = ref([
         "Excellent work! Michael and his team did an amazing job on our kitchen. Very professional and completed on time.",
     },
 ])
+
+import { computed } from "vue" //from here --->
+
+const averageRating = computed(() => {
+  if (reviews.value.length === 0) return 0
+
+  const total = reviews.value.reduce((sum, r) => sum + (r.rating || 0), 0)
+  return (total / reviews.value.length).toFixed(1)
+})
+
+const reviewCount = computed(() => reviews.value.length)
+
+const reviewBreakdown = computed(() => {
+  const counts = [0, 0, 0, 0, 0] // index 0 = 1★, index 4 = 5★
+
+  reviews.value.forEach((r) => {
+    if (r.rating >= 1 && r.rating <= 5) {
+      counts[r.rating - 1]++
+    }
+  })
+
+  const total = reviews.value.length || 1
+
+  return [5, 4, 3, 2, 1].map((stars) => {
+    const count = counts[stars - 1]
+    return {
+      stars,
+      percent: Math.round((count / total) * 100),
+    }
+  })
+})                              //<--- to here is reviewbreakdown scoreboard code
 
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore"
 import { auth, db } from "@/firebase.js"
@@ -127,10 +163,37 @@ async function loadReviews() {
 
     const snapshot = await getDocs(q)
 
-    reviews.value = snapshot.docs.map((reviewDoc) => ({
-      id: reviewDoc.id,
-      ...reviewDoc.data(),
-    }))
+    // reviews.value = snapshot.docs.map((reviewDoc) => ({ //this was limited to showing id only
+    //   id: reviewDoc.id,
+    //   ...reviewDoc.data(),
+    // }))
+    const reviewsWithNames = await Promise.all(
+      snapshot.docs.map(async (reviewDoc) => {
+        const reviewData = reviewDoc.data()
+
+        // fetch reviewer info
+        const reviewerRef = doc(db, "users", reviewData.reviewerId)
+        const reviewerSnap = await getDoc(reviewerRef)
+
+        let reviewerName = "Unknown User"
+
+        if (reviewerSnap.exists()) {
+          const reviewerData = reviewerSnap.data()
+          reviewerName =
+            reviewerData.fullName + " — " +reviewerData.username + ""
+            || "User"
+        }
+
+        return {
+          id: reviewDoc.id,
+          ...reviewData,
+          reviewerName, // 👈 add this
+        }
+      })
+    )
+
+    reviews.value = reviewsWithNames
+
   } catch (error) {
     console.error("Error submitting review:", error)
     errorMessage.value = "Failed to submit review."

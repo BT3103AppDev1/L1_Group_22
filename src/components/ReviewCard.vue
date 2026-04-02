@@ -2,7 +2,7 @@
     <div class="review-card">
         <div class="review-card-top">
             <div>
-                <h3>{{ review.reviewerId }}</h3>
+                <h3>{{ review.reviewerName }}</h3>
                 <p class="subtext">{{ review.projectTitle }}</p>
             </div>
 
