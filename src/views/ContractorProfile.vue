@@ -15,11 +15,11 @@
                 <p class="company">{{ contractor.company }}</p>
   
                 <div class="rating-row">
-                  <span class="star">★</span>
+                  <span class="star">HARD CODED REEE★</span>
                   <span>{{ contractor.rating }}</span>
                   <span class="muted">({{ contractor.reviewCount }} reviews)</span>
                   <span class="dot">•</span>
-                  <span class="muted">{{ contractor.projectsCompleted }} projects completed</span>
+                  <span class="muted">{{ contractor.projectsCompleted }} projects completed ★HARD CODED  REEE</span>
                 </div>
   
                 <div class="info-grid">
@@ -159,7 +159,7 @@
   
   <script setup>
   import { onMounted, reactive, ref } from "vue"
-  import { useRouter } from "vue-router"
+  // import { useRouter } from "vue-router"
   import ToolBarContractor from "@/components/ToolBarContractor.vue"
   import PortfolioTab from "@/components/PortfolioTab.vue"
   import OpportunitiesTab from "@/components/OpportunitiesTab.vue"
@@ -167,7 +167,7 @@
   import { auth, db } from "@/firebase.js"
   import { doc, getDoc, setDoc } from "firebase/firestore"
   
-  const router = useRouter()
+  // const router = useRouter()
   
   const activeTab = ref("portfolio")
   const editing = ref(false)

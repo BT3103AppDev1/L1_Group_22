@@ -50,26 +50,26 @@
 import { reactive, ref, onMounted } from "vue"
 import ReviewCard from "@/components/ReviewCard.vue"
 
-const contractor = reactive({
-    initial: "M",
-    fullName: "Samson Lim",
-    company: "Property Lim Brothers Renovation",
-    rating: 4.8,
-    reviewCount: 47,
-    projectsCompleted: 152,
-    email: "michael.tan@premiumreno.com",
-    phone: "+65 8234 5678",
-    location: "Jurong West, Singapore",
-    yearsExperience: 12,
-    skills: [
-      "Kitchen Renovation",
-      "Bathroom Remodeling",
-      "Carpentry",
-      "Flooring",
-      "Painting",
-      "Electrical Work",
-    ],
-})
+// const contractor = reactive({
+//     initial: "M",
+//     fullName: "Samson Lim",
+//     company: "Property Lim Brothers Renovation",
+//     rating: 4.8,
+//     reviewCount: 47,
+//     projectsCompleted: 152,
+//     email: "michael.tan@premiumreno.com",
+//     phone: "+65 8234 5678",
+//     location: "Jurong West, Singapore",
+//     yearsExperience: 12,
+//     skills: [
+//       "Kitchen Renovation",
+//       "Bathroom Remodeling",
+//       "Carpentry",
+//       "Flooring",
+//       "Painting",
+//       "Electrical Work",
+//     ],
+// })
 
 // const reviewBreakdown = ref([
 //     { stars: 5, percent: 75 },
@@ -187,7 +187,7 @@ async function loadReviews() {
         return {
           id: reviewDoc.id,
           ...reviewData,
-          reviewerName, // 👈 add this
+          reviewerName,
         }
       })
     )

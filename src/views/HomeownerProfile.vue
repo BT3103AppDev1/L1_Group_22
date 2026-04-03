@@ -14,13 +14,13 @@
 
               <p class="company">{{ homeowner.company }}</p>
 
-              <div class="rating-row">
+              <!-- <div class="rating-row">
                 <span class="star">★</span>
                 <span>{{ homeowner.rating }}</span>
                 <span class="muted">({{ homeowner.reviewCount }} reviews)</span>
                 <span class="dot">•</span>
                 <span class="muted">{{ homeowner.projectsCompleted }} projects completed</span>
-              </div>
+              </div> -->
 
               <div class="info-grid">
                 <div class="info-item">✉ {{ homeowner.email }}</div>
@@ -29,14 +29,14 @@
                 <div class="info-item">👤 {{ homeowner.yearsExperience }} years on the app</div>
               </div>
 
-              <div class="skills-section">
+              <!-- <div class="skills-section">
                 <div class="skills-title">Skills & Specializations</div>
                 <div class="skill-list">
                   <span v-for="skill in homeowner.skills" :key="skill" class="skill-pill">
                     {{ skill }}
                   </span>
                 </div>
-              </div>
+              </div> -->
 
               <!-- <br><hr> -->
 
@@ -78,10 +78,10 @@
                   <input v-model="editForm.fullName" type="text" />
                 </div>
 
-                <div class="field">
+                <!-- <div class="field">
                   <label>Company Name</label>
                   <input v-model="editForm.company" type="text" />
-                </div>
+                </div> -->
 
                 <div class="field">
                   <label>Email</label>
@@ -104,7 +104,7 @@
                 </div>
               </div>
 
-              <div class="skill-editor">
+              <!-- <div class="skill-editor">
                 <label>Skills & Specializations</label>
                 <div class="add-skill-row">
                   <input
@@ -126,7 +126,7 @@
                     <button class="remove-skill" @click="removeSkill(index)">×</button>
                   </span>
                 </div>
-              </div>
+              </div> -->
 
               <div class="edit-actions">
                 <button class="save-btn" @click="saveProfile">Save Changes</button>
@@ -164,18 +164,15 @@
 
         <div class="tab-content">
           <div v-if="activeTab === 'portfolio'">
-            <ProjectsTab/>
-            
+            <ProjectsTab/>            
           </div>
 
           <div v-if="activeTab === 'opportunities'">
-            <SavedContractorsTab/>
-            
+            <SavedContractorsTab/>            
           </div>
 
           <div v-if="activeTab === 'reviews'">
-            <ReviewsTab/> <!-- change to ClientReviewTab once ready -->
-
+            <ClientReviewTab/> 
           </div>
         </div>
       </section>
@@ -183,14 +180,16 @@
 </template>
   
 <script setup>
-  import { reactive, ref } from "vue"
-  import { useRouter } from "vue-router"
+  import { onMounted, reactive, ref } from "vue"
+  import { auth, db } from "@/firebase.js"
+  import { doc, getDoc, setDoc } from "firebase/firestore"
+
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   import ProjectsTab from "../components/ProjectsTab.vue"
   import SavedContractorsTab from "@/components/SavedContractorsTab.vue"
-  import ReviewsTab from "@/components/ReviewsTab.vue"
+  // import ReviewsTab from "@/components/ReviewsTab.vue"
+  import ClientReviewTab from "@/components/ClientReviewTab.vue"
   
-  const router = useRouter()
   
   const activeTab = ref("portfolio")
   const editing = ref(false)
@@ -228,32 +227,47 @@
     skills: [...homeowner.skills],
   })
   
-  const reviewBreakdown = ref([
-    { stars: 5, percent: 75 },
-    { stars: 4, percent: 20 },
-    { stars: 3, percent: 3 },
-    { stars: 2, percent: 1 },
-    { stars: 1, percent: 1 },
-  ])
-  
-  const reviews = ref([
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      project: "Kitchen Renovation",
-      date: "2/15/2024",
-      comment:
-        "Understanding and Accommodating client, pleasure to work with",
-    },
-  ])
-  
-  function goFindProjects() {
-    router.push("/homeowner-home")
+  function syncEditForm() {
+  editForm.initial = homeowner.initial
+  editForm.fullName = homeowner.fullName
+  editForm.company = homeowner.company
+  editForm.email = homeowner.email
+  editForm.phone = homeowner.phone
+  editForm.location = homeowner.location
+  editForm.yearsExperience = homeowner.yearsExperience
+  editForm.skills = [...homeowner.skills]
+}
+
+async function loadHomeownerProfile() {
+  try {
+    const user = auth.currentUser
+    if (!user) return
+
+    const userRef = doc(db, "users", user.uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) return
+
+    const data = userSnap.data()
+
+    if (data.userType !== "homeowner") return
+
+    homeowner.fullName = data.fullName || ""
+    homeowner.company = data.company || ""
+    homeowner.email = data.email || user.email || ""
+    homeowner.phone = data.phone || ""
+    homeowner.location = data.location || ""
+    homeowner.yearsExperience = data.yearsExperience || 0
+    homeowner.skills = data.skills || []
+    homeowner.initial = homeowner.fullName
+      ? homeowner.fullName.charAt(0).toUpperCase()
+      : "X"
+
+    syncEditForm()
+  } catch (error) {
+    console.error("Error loading homeowner profile:", error)
   }
-  
-  function logout() {
-    router.push("/")
-  }
+}
   
   function addSkill() {
     const skill = newSkill.value.trim()
@@ -267,17 +281,49 @@
     editForm.skills.splice(index, 1)
   }
   
-  function saveProfile() {
-    homeowner.initial = editForm.fullName ? editForm.fullName[0].toUpperCase() : "M"
+  async function saveProfile() {
+  try {
+    const user = auth.currentUser
+    if (!user) return
+
+    const userRef = doc(db, "users", user.uid)
+    const userSnap = await getDoc(userRef)
+
+    if (!userSnap.exists()) return
+
+    const data = userSnap.data()
+    if (data.userType !== "homeowner") return
+
+    await setDoc(
+      userRef,
+      {
+        fullName: editForm.fullName,
+        company: editForm.company,
+        email: editForm.email,
+        phone: editForm.phone,
+        location: editForm.location,
+        yearsExperience: Number(editForm.yearsExperience),
+        skills: [...editForm.skills],
+      },
+      { merge: true }
+    )
+
     homeowner.fullName = editForm.fullName
     homeowner.company = editForm.company
     homeowner.email = editForm.email
     homeowner.phone = editForm.phone
     homeowner.location = editForm.location
-    homeowner.yearsExperience = editForm.yearsExperience
+    homeowner.yearsExperience = Number(editForm.yearsExperience)
     homeowner.skills = [...editForm.skills]
+    homeowner.initial = homeowner.fullName
+      ? homeowner.fullName.charAt(0).toUpperCase()
+      : "M"
+
     editing.value = false
+  } catch (error) {
+    console.error("Error saving homeowner profile:", error)
   }
+}
   
   function cancelEdit() {
     editForm.initial = homeowner.initial
@@ -291,6 +337,9 @@
     newSkill.value = ""
     editing.value = false
   }
+  onMounted(() => {
+  loadHomeownerProfile()
+})
   </script>
   
   <style scoped>
