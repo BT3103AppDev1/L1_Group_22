@@ -1,7 +1,7 @@
 <template>
   <div class="section-header">
     <h2>My Portfolio</h2>
-    <button class="primary-btn" @click="showAddForm = true">+ Add Project</button>
+    <button class="primary-btn" @click="showAddForm = true" v-if="isOwner()">+ Add Project</button>
   </div>
 
   <div v-if="showAddForm" class="modal-backdrop">
@@ -135,7 +135,7 @@
           <span class="small-tag">{{ project.dateLabel }}</span>
         </div>
 
-        <button class="full-outline-btn">Edit Project</button>
+        <button class="full-outline-btn" v-if="isOwner()">Edit Project</button>
       </div>
     </div>
   </div>
@@ -156,6 +156,17 @@ import {
   doc,
   getDoc,
 } from "firebase/firestore"
+
+const { contractorId } = defineProps({
+  contractorId: {
+    type: String,
+    required: true
+  }
+})
+
+const isOwner = () => {
+  return !contractorId || contractorId === auth.currentUser?.uid
+}
 
 const portfolioProjects = ref([])
 const loading = ref(true)
@@ -240,14 +251,14 @@ async function loadPortfolioProjects() {
 
     const userData = userSnap.data()
 
-    if (userData.userType !== "contractor") {
-      errorMessage.value = "Only contractor accounts can view portfolio projects."
-      return
-    }
+    // if (userData.userType !== "contractor") {
+    //   errorMessage.value = "Only contractor accounts can view portfolio projects."
+    //   return
+    // }
 
     const q = query(
       collection(db, "portfolioProjects"),
-      where("contractorId", "==", user.uid),
+      where("contractorId", "==", contractorId),
       orderBy("createdAt", "desc")
     )
 

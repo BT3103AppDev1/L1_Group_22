@@ -80,6 +80,17 @@ import ReviewCard from "@/components/ReviewCard.vue"
 // ])
 
 // const reviews = ref([]) //use this once all is well
+
+const { contractorId } = defineProps({
+  contractorId: {
+    type: String,
+    required: true
+  }
+})
+
+const isOwner = computed(() =>
+  !route.params.contractorId || route.params.contractorId === auth.currentUser?.uid
+)
   
 const reviews = ref([ //placeholder that becomes overridden if contractor is logged in. replace with above once everything is sorted
     {
@@ -157,7 +168,7 @@ async function loadReviews() {
 
     const q = query(
       collection(db, "customerReviews"),
-      where("targetId", "==", user.uid),
+      where("targetId", "==", contractorId),
       orderBy("createdAt", "desc")
     )
 

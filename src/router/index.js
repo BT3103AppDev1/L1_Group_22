@@ -42,7 +42,10 @@ const router = createRouter({
     path: '/chats',
     name: 'Chats',
     component: () => import('../views/Chats.vue')
-  }
+  },
+  { 
+    path: '/contractor/:contractorId', 
+    component: () => import('../views/ContractorProfile.vue') }
 ]
 })
 

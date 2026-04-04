@@ -54,7 +54,7 @@
 
         <ReviewButton :contractorId="contractor.id"/> <!-- remove and insert into chat function once ready -->
 
-        <button class="profile-btn" type="button" @click="$emit('view-profile', contractor)">
+        <button class="profile-btn" type="button" @click="goToProfile">
           View Profile
         </button>
       </div>
@@ -64,12 +64,13 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import defaultAvatar from '@/assets/default-avatar.png'
 import starIcon from '@/assets/star-outline.svg'
 import locationIcon from '@/assets/location-outline.svg'
 import bagIcon from '@/assets/bag-outline.svg'
 import heartOutlineIcon from '@/assets/heart-outline.svg'
-import ReviewButton from '@/components/ReviewButton.vue' //remove and insert into chat function once ready
+import ReviewButton from '@/components/ReviewButton.vue'
 
 const props = defineProps({
   contractor: {
@@ -78,12 +79,18 @@ const props = defineProps({
   },
 })
 
-defineEmits(['contact', 'view-profile'])
+defineEmits(['contact'])
+
+const router = useRouter()
 
 const isFavourited = ref(false)
 
 function toggleFavourite() {
   isFavourited.value = !isFavourited.value
+}
+
+function goToProfile() {
+  router.push(`/contractor/${props.contractor.id}`)
 }
 
 const priceTier = computed(() => {
