@@ -7,8 +7,10 @@
         </div>
   
         <div class="top-actions">
-          <button class="icon-btn" type="button">🔔</button>
-          <button class="home-btn" type=""button @click="goToHome">
+          <button class="chat-btn" type="button" @click="goToChats">
+            Chats
+          </button>
+          <button class="home-btn" type="button" @click="goToHome">
             Home
           </button>
           <button class="profile-btn" type="button" @click="goToProfile">
@@ -35,6 +37,10 @@ function goToProfile() {
 
 function goToHome() {
   router.push("/contractor/home")
+}
+
+function goToChats() {
+  router.push("/chats")
 }
   
 async function logout() {
@@ -89,7 +95,7 @@ async function logout() {
     gap: 12px;
 }
 
-.icon-btn,
+.chat-btn,
 .profile-btn,
 .home-btn,
 .logout-btn {
@@ -100,13 +106,7 @@ async function logout() {
     font-weight: 600;
 }
   
-.icon-btn {
-    background: transparent;
-    color: white;
-    font-size: 16px;
-    padding: 8px;
-}
-  
+.chat-btn,
 .profile-btn,
 .home-btn,
 .logout-btn {
