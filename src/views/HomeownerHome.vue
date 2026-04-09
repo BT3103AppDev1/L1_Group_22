@@ -201,7 +201,7 @@ function resetFilters() {
 
 function handleContact(contractor) {
   //router.push({ name: "HomeownerChatPage", params: { id: contractor.id } })
-  router.push("/homeowner/chat")
+  router.push("/chat")
 }
 
 function handleViewProfile(contractor) {

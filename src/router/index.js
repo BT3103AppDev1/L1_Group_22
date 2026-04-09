@@ -34,9 +34,9 @@ const router = createRouter({
     component: () => import("../views/HomeownerProfile.vue")
   },
   {
-    path: '/homeowner/chat',
+    path: '/chat',
     name: 'Homeowner Chat',
-    component: () => import('../views/HomeownerChatPage.vue')
+    component: () => import('../views/Chats.vue')
   },
   {
     path: '/chats',
