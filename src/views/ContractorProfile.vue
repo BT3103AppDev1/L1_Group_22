@@ -165,13 +165,15 @@
 <script setup>
 import { onMounted, reactive, ref, computed } from "vue"
 import { useRoute } from "vue-router"
+import { auth, db } from "@/firebase.js"
+import { doc, getDoc, setDoc } from "firebase/firestore"
+
 import ToolBarContractor from "@/components/ToolBarContractor.vue"
 import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
 import PortfolioTab from "@/components/PortfolioTab.vue"
 import OpportunitiesTab from "@/components/OpportunitiesTab.vue"
 import ReviewsTab from "@/components/ReviewsTab.vue"
-import { auth, db } from "@/firebase.js"
-import { doc, getDoc, setDoc } from "firebase/firestore"
+
 
 const route = useRoute()
 

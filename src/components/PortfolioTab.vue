@@ -3,8 +3,9 @@
     <h2>My Portfolio</h2>
     <button class="primary-btn" @click="showAddForm = true" v-if="isOwner()">+ Add Project</button>
   </div>
-
-  <div v-if="showAddForm" class="modal-backdrop">
+  
+  <!-- Add Project Form, displayed on click -->
+  <div v-if="showAddForm" class="modal-backdrop"> 
     <div class="modal-card">
       <div class="modal-header">
         <h3>Add Project</h3>
@@ -41,10 +42,10 @@
           <label>Price Tier</label>
           <select v-model="newProject.priceTier">
             <option value="">Select</option>
-            <option value="$">$</option>
-            <option value="$$">$$</option>
-            <option value="$$$">$$$</option>
-            <option value="$$$$">$$$$</option>
+            <option value="$">$ (S$0  -  500)</option>
+            <option value="$$">$$ (S$500  -  2 000)</option>
+            <option value="$$$">$$$ (S$2 000  -  10 000)</option>
+            <option value="$$$$">$$$$ (>S$10 000)</option>
           </select>
         </div>
 
