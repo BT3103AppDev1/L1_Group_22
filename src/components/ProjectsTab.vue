@@ -284,7 +284,7 @@ async function saveNewProject() {
 
     const user = auth.currentUser
     if (!user) {
-      errorMessage.value = "No logged-in user found."
+      alert("No logged-in user found.")
       return
     }
 
@@ -292,14 +292,14 @@ async function saveNewProject() {
     const userSnap = await getDoc(userRef)
 
     if (!userSnap.exists()) {
-      errorMessage.value = "User profile not found."
+      alert("User profile not found.")
       return
     }
 
     const userData = userSnap.data()
 
     if (userData.userType !== "homeowner") {
-      errorMessage.value = "Only homeowners can add portfolio projects."
+      alert("Only homeowners can add portfolio projects.")
       return
     }
 
