@@ -95,7 +95,7 @@
 import { computed, onMounted, ref } from "vue"
 import { useRouter } from "vue-router"
 import { getAuth } from "firebase/auth"
-import { collection, getDocs, query, where } from "firebase/firestore"
+import { collection, serverTimestamp, getDocs, query, where, addDoc } from "firebase/firestore"
 import { db } from "@/firebase"
 import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
 import ContractorCard from "@/components/ContractorCard.vue"
@@ -113,6 +113,7 @@ const verifiedOnly = ref(false)
 const loadingContractors = ref(true)
 const contractorError = ref("")
 const contractors = ref([])
+const currentUid = auth.currentUser?.uid
 
 const categoryOptions = [
   "General Contractor",
@@ -199,9 +200,14 @@ function resetFilters() {
   verifiedOnly.value = false
 }
 
-function handleContact(contractor) {
+async function handleContact(contractor) {
   //router.push({ name: "HomeownerChatPage", params: { id: contractor.id } })
-  router.push("/chat")
+  const docRef = await addDoc(collection(db, "conversations"), {
+      homeownerId: currentUid,
+      contractorId: contractor.id,
+      createdAt: serverTimestamp(),
+    })
+  router.push("/chats")
 }
 
 function handleViewProfile(contractor) {
