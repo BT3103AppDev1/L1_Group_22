@@ -201,12 +201,15 @@ function resetFilters() {
 }
 
 async function handleContact(contractor) {
-  //router.push({ name: "HomeownerChatPage", params: { id: contractor.id } })
-  const docRef = await addDoc(collection(db, "conversations"), {
+  const q = query(collection(db, "conversations"), where("contractorId", "==", contractor.id))
+  if (!q) {
+    await addDoc(collection(db, "conversations"), {
       homeownerId: currentUid,
       contractorId: contractor.id,
       createdAt: serverTimestamp(),
     })
+  }
+  //router.push({ name: "HomeownerChatPage", params: { id: contractor.id } })
   router.push("/chats")
 }
 
