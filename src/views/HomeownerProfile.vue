@@ -61,7 +61,7 @@
               </div> -->
             </div>
 
-            <div class="edit-wrap">
+            <div class="edit-wrap" v-if="isOwner">
               <button class="outline-btn" @click="editing = true">Edit Profile</button>
             </div>
           </div>
@@ -147,6 +147,7 @@
             My Projects
           </button>
           <button
+            v-if="isOwner"
             class="tab-btn"
             :class="{ active: activeTab === 'opportunities' }"
             @click="activeTab = 'opportunities'"
@@ -164,15 +165,15 @@
 
         <div class="tab-content">
           <div v-if="activeTab === 'portfolio'">
-            <ProjectsTab/>            
+            <ProjectsTab :homeownerId="profileUid"/>            
           </div>
 
-          <div v-if="activeTab === 'opportunities'">
+          <div v-if="activeTab === 'opportunities' && isOwner">
             <SavedContractorsTab/>            
           </div>
 
           <div v-if="activeTab === 'reviews'">
-            <ClientReviewTab/> 
+            <ClientReviewTab :homeownerId="profileUid" /> 
           </div>
         </div>
       </section>
@@ -180,16 +181,29 @@
 </template>
   
 <script setup>
-  import { onMounted, reactive, ref } from "vue"
+  import { onMounted, reactive, ref, computed } from "vue"
+  import { useRoute } from "vue-router"
   import { auth, db } from "@/firebase.js"
   import { doc, getDoc, setDoc } from "firebase/firestore"
 
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
+  
   import ProjectsTab from "../components/ProjectsTab.vue"
   import SavedContractorsTab from "@/components/SavedContractorsTab.vue"
   // import ReviewsTab from "@/components/ReviewsTab.vue"
   import ClientReviewTab from "@/components/ClientReviewTab.vue"
+
+  const route = useRoute()
   
+  // If a homeownerId param is in the URL, a homeowner is viewing someone else's profile.
+  // If no param, the contractor is viewing their own profile.
+  const profileUid = computed(() =>
+  route.params.homeownerId || auth.currentUser?.uid
+)
+
+const isOwner = computed(() =>
+  !route.params.homeownerId || route.params.homeownerId === auth.currentUser?.uid
+)
   
   const activeTab = ref("portfolio")
   const editing = ref(false)
@@ -217,14 +231,22 @@
   })
   
   const editForm = reactive({
-    initial: homeowner.initial,
-    fullName: homeowner.fullName,
-    company: homeowner.company,
-    email: homeowner.email,
-    phone: homeowner.phone,
-    location: homeowner.location,
-    yearsExperience: homeowner.yearsExperience,
-    skills: [...homeowner.skills],
+    initial: "",
+    fullName: "",
+    company: "",
+    email: "",
+    phone: "",
+    location: "",
+    yearsExperience: 0,
+    skills: [],
+    // initial: homeowner.initial,
+    // fullName: homeowner.fullName,
+    // company: homeowner.company,
+    // email: homeowner.email,
+    // phone: homeowner.phone,
+    // location: homeowner.location,
+    // yearsExperience: homeowner.yearsExperience,
+    // skills: [...homeowner.skills],
   })
   
   function syncEditForm() {
@@ -243,14 +265,15 @@ async function loadHomeownerProfile() {
     const user = auth.currentUser
     if (!user) return
 
-    const userRef = doc(db, "users", user.uid)
+    // const userRef = doc(db, "users", user.uid)
+    const userRef = doc(db, "users", profileUid.value)
     const userSnap = await getDoc(userRef)
 
     if (!userSnap.exists()) return
 
     const data = userSnap.data()
 
-    if (data.userType !== "homeowner") return
+    // if (data.userType !== "homeowner") return
 
     homeowner.fullName = data.fullName || ""
     homeowner.company = data.company || ""
@@ -287,12 +310,12 @@ async function loadHomeownerProfile() {
     if (!user) return
 
     const userRef = doc(db, "users", user.uid)
-    const userSnap = await getDoc(userRef)
+    // const userSnap = await getDoc(userRef)
 
-    if (!userSnap.exists()) return
+    // if (!userSnap.exists()) return
 
-    const data = userSnap.data()
-    if (data.userType !== "homeowner") return
+    // const data = userSnap.data()
+    // if (data.userType !== "homeowner") return
 
     await setDoc(
       userRef,
@@ -326,17 +349,19 @@ async function loadHomeownerProfile() {
 }
   
   function cancelEdit() {
-    editForm.initial = homeowner.initial
-    editForm.fullName = homeowner.fullName
-    editForm.company = homeowner.company
-    editForm.email = homeowner.email
-    editForm.phone = homeowner.phone
-    editForm.location = homeowner.location
-    editForm.yearsExperience = homeowner.yearsExperience
-    editForm.skills = [...homeowner.skills]
+    syncEditForm()
+    // editForm.initial = homeowner.initial
+    // editForm.fullName = homeowner.fullName
+    // editForm.company = homeowner.company
+    // editForm.email = homeowner.email
+    // editForm.phone = homeowner.phone
+    // editForm.location = homeowner.location
+    // editForm.yearsExperience = homeowner.yearsExperience
+    // editForm.skills = [...homeowner.skills]
     newSkill.value = ""
     editing.value = false
   }
+  
   onMounted(() => {
   loadHomeownerProfile()
 })

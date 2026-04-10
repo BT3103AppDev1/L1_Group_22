@@ -3,8 +3,9 @@
     <h2>My Portfolio</h2>
     <button class="primary-btn" @click="showAddForm = true" v-if="isOwner()">+ Add Project</button>
   </div>
-
-  <div v-if="showAddForm" class="modal-backdrop">
+  
+  <!-- Add Project Form, displayed on click -->
+  <div v-if="showAddForm" class="modal-backdrop"> 
     <div class="modal-card">
       <div class="modal-header">
         <h3>Add Project</h3>
@@ -41,10 +42,10 @@
           <label>Price Tier</label>
           <select v-model="newProject.priceTier">
             <option value="">Select</option>
-            <option value="$">$</option>
-            <option value="$$">$$</option>
-            <option value="$$$">$$$</option>
-            <option value="$$$$">$$$$</option>
+            <option value="$">$ (S$0  -  500)</option>
+            <option value="$$">$$ (S$500  -  2 000)</option>
+            <option value="$$$">$$$ (S$2 000  -  10 000)</option>
+            <option value="$$$$">$$$$ (>S$10 000)</option>
           </select>
         </div>
 
@@ -282,7 +283,7 @@ async function saveNewProject() {
 
     const user = auth.currentUser
     if (!user) {
-      errorMessage.value = "No logged-in user found."
+      alert("No logged-in user found.")
       return
     }
 
@@ -290,14 +291,14 @@ async function saveNewProject() {
     const userSnap = await getDoc(userRef)
 
     if (!userSnap.exists()) {
-      errorMessage.value = "User profile not found."
+      alert("User profile not found.")
       return
     }
 
     const userData = userSnap.data()
 
     if (userData.userType !== "contractor") {
-      errorMessage.value = "Only contractors can add portfolio projects."
+      alert("Only contractors can add portfolio projects.")
       return
     }
 
@@ -309,7 +310,7 @@ async function saveNewProject() {
       !newProject.dateLabel.trim() ||
       !newProject.priceTier.trim()
     ) {
-      errorMessage.value = "Please fill in all required fields."
+      alert("Please fill in all required fields.")
       return
     }
 
