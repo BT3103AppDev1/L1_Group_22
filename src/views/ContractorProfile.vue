@@ -87,16 +87,37 @@
 
             <div class="skill-editor">
               <label>Skills & Specializations</label>
+
+              <!-- Preset checkboxes -->
+              <div class="skill-checkboxes">
+                <label
+                  v-for="skill in SKILL_OPTIONS"
+                  :key="skill"
+                  class="skill-checkbox-item"
+                  :class="{ selected: editForm.skills.includes(skill) }"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="editForm.skills.includes(skill)"
+                    @change="togglePresetSkill(skill)"
+                  />
+                  {{ skill }}
+                </label>
+              </div>
+
+              <!-- Custom skill input -->
+              <div class="custom-skill-label">Other skills not listed above:</div>
               <div class="add-skill-row">
                 <input
                   v-model="newSkill"
                   type="text"
-                  placeholder="Add new skill"
+                  placeholder="Type a skill and press Enter or +"
                   @keyup.enter="addSkill"
                 />
-                <button class="square-btn" @click="addSkill">+</button>
+                <button class="square-btn" type="button" @click="addSkill">+</button>
               </div>
 
+              <!-- All selected skills displayed as removable pills -->
               <div class="skill-list editable-skills">
                 <span
                   v-for="(skill, index) in editForm.skills"
@@ -104,7 +125,7 @@
                   class="skill-pill"
                 >
                   {{ skill }}
-                  <button class="remove-skill" @click="removeSkill(index)">×</button>
+                  <button class="remove-skill" type="button" @click="removeSkill(index)">×</button>
                 </span>
               </div>
             </div>
@@ -174,6 +195,17 @@ import PortfolioTab from "@/components/PortfolioTab.vue"
 import OpportunitiesTab from "@/components/OpportunitiesTab.vue"
 import ReviewsTab from "@/components/ReviewsTab.vue"
 
+const SKILL_OPTIONS = [
+  "Kitchen Renovation",
+  "Bathroom",
+  "Carpentry",
+  "Electrical",
+  "Painting",
+  "Plumbing",
+  "Flooring",
+  "General Renovation",
+]
+
 
 const route = useRoute()
 
@@ -215,6 +247,19 @@ const editForm = reactive({
   yearsExperience: 0,
   skills: [],
 })
+
+const customSkills = computed(() =>
+  editForm.skills.filter(s => !SKILL_OPTIONS.includes(s))
+)
+
+function togglePresetSkill(skill) {
+  const idx = editForm.skills.indexOf(skill)
+  if (idx === -1) {
+    editForm.skills.push(skill)
+  } else {
+    editForm.skills.splice(idx, 1)
+  }
+}
 
 function syncEditForm() {
   editForm.initial = contractor.initial
@@ -613,4 +658,51 @@ onMounted(() => {
     justify-content: flex-start;
   }
 }
+
+  .skill-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .skill-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1.5px solid #e5e7eb;
+    background: #f9fafb;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+
+  .skill-checkbox-item:hover {
+    border-color: #2958ec;
+    background: #eff4ff;
+  }
+
+  .skill-checkbox-item.selected {
+    border-color: #2958ec;
+    background: #e7efff;
+    color: #2958ec;
+    font-weight: 600;
+  }
+
+  .skill-checkbox-item input[type="checkbox"] {
+    accent-color: #2958ec;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .custom-skill-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    margin-bottom: 8px;
+  }
 </style>

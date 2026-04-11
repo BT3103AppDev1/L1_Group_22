@@ -65,80 +65,13 @@
           </div>
   
           <div v-else-if="filteredJobs.length > 0" class="job-list">
-            <article v-for="job in filteredJobs" :key="job.id" class="job-card">
-              <div class="job-card-header">
-                <div class="job-header-left">
-                  <div class="title-row">
-                    <h2>{{ job.title }}</h2>
-  
-                    <span
-                      v-if="job.status"
-                      class="tag status-tag"
-                      :class="statusClass(job.status)"
-                    >
-                      {{ job.status }}
-                    </span>
-  
-                    <span
-                      v-if="job.urgency"
-                      class="tag urgency-tag"
-                      :class="urgencyClass(job.urgency)"
-                    >
-                      {{ job.urgency }}
-                    </span>
-                  </div>
-  
-                  <div class="job-meta-top">
-                    <span>👤 {{ job.homeownerName }}</span>
-                    <span v-if="job.homeownerRating">⭐ {{ job.homeownerRating }}</span>
-                  </div>
-                </div>
-  
-                <div class="job-budget">
-                  <div class="budget-symbol">
-                    {{ budgetSymbol(job.budgetMin, job.budgetMax) }}
-                  </div>
-                  <div class="budget-range">
-                    {{ showBudget(job.budgetMin, job.budgetMax) }}
-                  </div>
-                </div>
-              </div>
-  
-              <p class="job-description">
-                {{ job.description }}
-              </p>
-  
-              <img
-                v-if="job.imageUrl"
-                :src="job.imageUrl"
-                :alt="job.title"
-                class="job-image"
-              />
-  
-              <div class="job-meta-bottom">
-                <span v-if="job.category">🧰 {{ job.category }}</span>
-                <span v-if="job.location">📍 {{ job.location }}</span>
-                <span v-if="job.startDate">📅 Start: {{ showDate(job.startDate) }}</span>
-              </div>
-  
-              <div class="job-footer">
-                <div class="job-posted">
-                  <span v-if="job.createdAt">Posted {{ showDate(job.createdAt) }}</span>
-                  <span v-if="job.projectType">
-                    <template v-if="job.createdAt"> • </template>{{ job.projectType }}
-                  </span>
-                </div>
-  
-                <div class="job-actions">
-                  <button class="proposal-btn" type="button" @click="sendProposal(job)">
-                    Send Proposal
-                  </button>
-                  <button class="details-btn" type="button" @click="viewDetails(job)">
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </article>
+            <ProjectCard
+              v-for="project in filteredJobs"
+              :key="project.id"
+              :project="project"
+              @propose="sendProposal"
+              @details="viewDetails"
+            />
           </div>
   
           <div v-else class="empty-state">
@@ -152,9 +85,11 @@
   import { computed, onMounted, ref } from "vue"
   import { useRouter } from "vue-router"
   import { getAuth } from "firebase/auth"
-  import { collection, getDocs, orderBy, query } from "firebase/firestore"
+  import { collection, getDocs, orderBy, query, getDoc, doc, where } from "firebase/firestore"
   import { db } from "@/firebase"
+
   import ToolBarContractor from "@/components/ToolBarContractor.vue"
+  import ProjectCard from "@/components/ProjectCard.vue";
   
   const router = useRouter()
   const auth = getAuth()
@@ -198,22 +133,41 @@
   async function getJobs() {
     loading.value = true
     error.value = ""
-  
+
     try {
-      const q = query(collection(db, "jobs"), orderBy("createdAt", "desc"))
+      const q = query(
+        collection(db, "portfolioProjects"),
+        where("status", "==", "active"),
+        orderBy("createdAt", "desc")
+      )
       const snapshot = await getDocs(q)
-  
-      jobs.value = snapshot.docs.map((doc) => {
-        return {
-          id: doc.id,
-          ...doc.data(),
-        }
-      })
+
+      jobs.value = await Promise.all(
+        snapshot.docs.map(async (d) => {
+          const data = { id: d.id, ...d.data() }
+
+          // Enrich with homeowner name and rating
+          if (data.homeownerId) {
+            try {
+              const userSnap = await getDoc(doc(db, "users", data.homeownerId))
+              if (userSnap.exists()) {
+                const u = userSnap.data()
+                data.homeownerName = u.fullName || "Unknown"
+                data.homeownerRating = u.rating || null
+              }
+            } catch (e) {
+              console.error("Failed to fetch homeowner info", e)
+            }
+          }
+
+          return data
+        })
+      )
     } catch (err) {
-      console.log(err)
-      error.value = "Could not load jobs"
+      console.error(err)
+      error.value = "Could not load projects"
     }
-  
+
     loading.value = false
   }
   
@@ -339,6 +293,7 @@
   <style scoped>
   * {
     box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   }
 
   .search-bar-wrapper {
@@ -354,7 +309,7 @@
     align-items: center;
     padding: 0 14px;
     height: 42px;
-    max-width: 1160px;
+    /* max-width: 1160px; */
   }
   
   .search-icon {

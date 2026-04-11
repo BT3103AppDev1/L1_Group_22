@@ -26,7 +26,7 @@
                 <div class="info-item">✉ {{ homeowner.email }}</div>
                 <div class="info-item">📞 {{ homeowner.phone }}</div>
                 <div class="info-item">📍 {{ homeowner.location }}</div>
-                <div class="info-item">👤 {{ homeowner.yearsExperience }} years on the app</div>
+                <div class="info-item">👤 Member since {{ homeowner.memberSince}}</div>
               </div>
 
               <!-- <div class="skills-section">
@@ -96,10 +96,10 @@
                   <input v-model="editForm.location" type="text" />
                 </div>
 
-                <div class="field">
+                <!-- <div class="field">
                   <label>Years on the app</label>
                   <input v-model="editForm.yearsExperience" type="number" />
-                </div>
+                </div> -->
               </div>
 
               <!-- <div class="skill-editor">
@@ -210,6 +210,7 @@ const isOwner = computed(() =>
   const homeowner = reactive({
     initial: "D",
     fullName: "Dom Nick",
+    memberSince: "-",
     company: "Address here",
     rating: 4.8,
     reviewCount: 47,
@@ -285,7 +286,10 @@ async function loadHomeownerProfile() {
     homeowner.email = data.email || user.email || ""
     homeowner.phone = data.phone || ""
     homeowner.location = data.location || ""
-    homeowner.yearsExperience = data.yearsExperience || 0
+    //homeowner.yearsExperience = data.yearsExperience || 0
+    homeowner.memberSince = data.createdAt
+      ? data.createdAt.toDate().toLocaleDateString('en-SG', { month: 'long', year: 'numeric' })
+      : '—'
     homeowner.skills = data.skills || []
     homeowner.initial = homeowner.fullName
       ? homeowner.fullName.charAt(0).toUpperCase()
