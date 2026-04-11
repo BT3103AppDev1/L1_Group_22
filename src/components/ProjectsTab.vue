@@ -149,9 +149,14 @@
                       {{ statusLabel(project.status) }}
                     </span>
                 </div>
-                <button class="full-outline-btn" v-if="isOwner()" @click="openEditForm(project)">
-                  Edit Project
-                </button>
+                <div class="card-actions">
+                  <button class="full-outline-btn" v-if="isOwner()" @click="openEditForm(project)">
+                    Edit Project
+                  </button>
+                  <button class="view-details-btn" @click="$router.push(`/job-details/${project.id}`)">
+                    View Details
+                  </button>
+                </div>
             </div>
         </div>
     </div>
@@ -173,7 +178,7 @@ import {
   getDoc,
   updateDoc,
 } from "firebase/firestore"
-
+import { useRouter } from 'vue-router'
 
 const { homeownerId } = defineProps({
   homeownerId: {
@@ -187,6 +192,7 @@ const isOwner = () => {
 }
 // i realised we could have just used usrID instead of making a new homeowner ID oops...   
 
+const router = useRouter()
 const portfolioProjects = ref([])
 const loading = ref(true)
 const uploading = ref(false)
@@ -606,8 +612,8 @@ onMounted(() => {
 .full-outline-btn {
   width: 100%;
   border: 1px solid #2958ec;
-  color: #2958ec;
-  background: white;
+  color: white;
+  background: #2958ec;
   border-radius: 10px;
   padding: 11px 14px;
   font-weight: 600;
@@ -770,4 +776,30 @@ onMounted(() => {
 .status-tag.active     { background: #dcfce7; color: #15803d; }
 .status-tag.inProgress { background: #fef9c3; color: #a16207; }
 .status-tag.completed  { background: #e0e7ff; color: #3730a3; }
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.card-actions .full-outline-btn {
+  flex: 1;
+}
+
+.view-details-btn {
+  flex: 1;
+  border: 1px solid #2958ec;;
+  color: #2958ec;
+  background: white;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-details-btn:hover {
+  border-color: #374151;
+  color: #374151;
+}
+
 </style>

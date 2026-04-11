@@ -44,7 +44,7 @@
             <div class="edit-wrap" v-if="isOwner">
               <button class="outline-btn" @click="editing = true">Edit Profile</button>
             </div>
-            <div class="dashboard-numbers">
+            <div class="dashboard-numbers" v-if="isOwner">
               <div class="dashboard-stat">
                 <h1 class="stat-total">{{ projectStats.total }}</h1>
                 <div class="stat-label">Total Projects</div>

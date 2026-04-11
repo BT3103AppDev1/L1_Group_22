@@ -17,11 +17,17 @@
             <p class="company">{{ contractor.company }}</p>
 
             <div class="rating-row">
-              <span class="star">HARD CODED REEE★</span>
-              <span>{{ contractor.rating }}</span>
-              <span class="muted">({{ contractor.reviewCount }} reviews)</span>
-              <span class="dot">•</span>
-              <span class="muted">{{ contractor.projectsCompleted }} projects completed ★HARD CODED REEE</span>
+              <template v-if="contractor.reviewCount > 0">
+                <span class="star">★</span>
+                <span>{{ contractor.rating }}</span>
+                <span class="muted">({{ contractor.reviewCount }} reviews)</span>
+                <span class="dot">•</span>
+              </template>
+              <template v-else>
+                <span class="muted">No reviews yet</span>
+                <span class="dot">•</span>
+              </template>
+              <span class="muted">{{ contractor.projectsCompleted }} projects completed</span>
             </div>
 
             <div class="info-grid">
@@ -45,6 +51,24 @@
           <div class="edit-wrap" v-if="isOwner">
             <button class="outline-btn" @click="editing = true">Edit Profile</button>
           </div>
+          <div class="dashboard-numbers" v-if="isOwner">
+          <div class="dashboard-stat">
+            <h1 class="stat-total">{{ projectStats.total }}</h1>
+            <div class="stat-label">Total Projects</div>
+          </div>
+          <div class="dashboard-stat">
+            <h1 class="stat-portfolio">{{ projectStats.portfolio }}</h1>
+            <div class="stat-label">Your Portfolio</div>
+          </div>
+          <div class="dashboard-stat">
+            <h1 class="stat-progress">{{ projectStats.inProgress }}</h1>
+            <div class="stat-label">In Progress</div>
+          </div>
+          <div class="dashboard-stat">
+            <h1 class="stat-completed">{{ projectStats.completed }}</h1>
+            <div class="stat-label">Completed</div>
+          </div>
+        </div>
         </div>
       </template>
 
@@ -187,7 +211,7 @@
 import { onMounted, reactive, ref, computed } from "vue"
 import { useRoute } from "vue-router"
 import { auth, db } from "@/firebase.js"
-import { doc, getDoc, setDoc } from "firebase/firestore"
+import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
 
 import ToolBarContractor from "@/components/ToolBarContractor.vue"
 import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
@@ -223,13 +247,20 @@ const activeTab = ref("portfolio")
 const editing = ref(false)
 const newSkill = ref("")
 
+const projectStats = reactive({
+  total: 0,
+  portfolio: 0,
+  inProgress: 0,
+  completed: 0,
+})
+
 const contractor = reactive({
   initial: "",
   fullName: "",
   company: "",
-  rating: 4.8,
-  reviewCount: 47,
-  projectsCompleted: 152,
+  rating: null,
+  reviewCount: 0,
+  projectsCompleted: 0,
   email: "",
   phone: "",
   location: "",
@@ -251,6 +282,31 @@ const editForm = reactive({
 const customSkills = computed(() =>
   editForm.skills.filter(s => !SKILL_OPTIONS.includes(s))
 )
+
+async function loadProjectStats() {
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, 'portfolioProjects'),
+        where('contractorId', '==', profileUid.value)
+      )
+    )
+
+    projectStats.total = snap.size
+    projectStats.portfolio = 0
+    projectStats.inProgress = 0
+    projectStats.completed = 0
+
+    snap.docs.forEach((d) => {
+      const status = d.data().status
+      if (status === 'portfolio') projectStats.portfolio++
+      else if (status === 'inProgress') projectStats.inProgress++
+      else if (status === 'completed') projectStats.completed++
+    })
+  } catch (e) {
+    console.error('Failed to load project stats', e)
+  }
+}
 
 function togglePresetSkill(skill) {
   const idx = editForm.skills.indexOf(skill)
@@ -295,6 +351,34 @@ async function loadContractorProfile() {
     syncEditForm()
   } catch (error) {
     console.error("Error loading contractor profile:", error)
+  }
+}
+
+async function loadContractorStats() {
+  try {
+    const [reviewsSnap, projectsSnap] = await Promise.all([
+      getDocs(query(
+        collection(db, "customerReviews"),
+        where("targetId", "==", profileUid.value)
+      )),
+      getDocs(query(
+        collection(db, "portfolioProjects"),
+        where("contractorId", "==", profileUid.value),
+        where("status", "==", "completed")
+      )),
+    ])
+
+    contractor.reviewCount = reviewsSnap.size
+    contractor.projectsCompleted = projectsSnap.size
+
+    if (reviewsSnap.size > 0) {
+      const totalRating = reviewsSnap.docs.reduce((sum, d) => sum + (d.data().rating || 0), 0)
+      contractor.rating = Math.round((totalRating / reviewsSnap.size) * 10) / 10
+    } else {
+      contractor.rating = null
+    }
+  } catch (error) {
+    console.error("Error loading contractor stats:", error)
   }
 }
 
@@ -355,6 +439,8 @@ function cancelEdit() {
 
 onMounted(() => {
   loadContractorProfile()
+  loadContractorStats()
+  loadProjectStats()
 })
 </script>
 
@@ -705,4 +791,33 @@ onMounted(() => {
     color: #6b7280;
     margin-bottom: 8px;
   }
+
+  .dashboard-numbers {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-around;
+    padding-top: 20px;
+    margin-top: 16px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .dashboard-stat {
+    text-align: center;
+  }
+
+  .dashboard-stat h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .stat-total     { color: #2254f5; }
+  .stat-portfolio { color: #16a34a; }
+  .stat-progress  { color: #ea580c; }
+  .stat-completed { color: #111827; }
 </style>

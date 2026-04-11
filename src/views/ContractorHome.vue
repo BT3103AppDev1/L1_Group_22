@@ -285,7 +285,7 @@
   }
   
   function viewDetails(job) {
-    router.push(`/contractor/job-details/${job.id}`)
+    router.push(`/job-details/${job.id}`)
   }
   
   </script>

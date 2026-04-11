@@ -4,11 +4,11 @@
     <button class="primary-btn" @click="showAddForm = true" v-if="isOwner()">+ Add Project</button>
   </div>
   
-  <!-- Add Project Form, displayed on click -->
+  <!-- Add / Edit Project Form, displayed on click -->
   <div v-if="showAddForm" class="modal-backdrop"> 
     <div class="modal-card">
       <div class="modal-header">
-        <h3>Add Project</h3>
+        <h3>{{ editingProject ? 'Edit Project' : 'Add Project' }}</h3>
         <button class="close-btn" @click="closeForm">×</button>
       </div>
 
@@ -101,7 +101,7 @@
 
       <div class="form-actions">
         <button class="save-project-btn" @click="saveNewProject" :disabled="uploading">
-          {{ uploading ? 'Uploading...' : 'Save Project' }}
+          {{ uploading ? 'Uploading...' : editingProject ? 'Save Changes' : 'Save Project' }}
         </button>
         <button class="full-outline-btn" @click="closeForm" :disabled="uploading">Cancel</button>
       </div>
@@ -136,7 +136,7 @@
           <span class="small-tag">{{ project.dateLabel }}</span>
         </div>
 
-        <button class="full-outline-btn" v-if="isOwner()">Edit Project</button>
+        <button class="full-outline-btn" v-if="isOwner()" @click="openEditForm(project)">Edit Project</button>
       </div>
     </div>
   </div>
@@ -153,6 +153,7 @@ import {
   getDocs,
   orderBy,
   addDoc,
+  updateDoc,
   serverTimestamp,
   doc,
   getDoc,
@@ -174,6 +175,7 @@ const loading = ref(true)
 const uploading = ref(false)
 const errorMessage = ref("")
 const showAddForm = ref(false)
+const editingProject = ref(null)
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
@@ -224,11 +226,35 @@ function resetForm() {
   newProject.dateLabel = ""
   newProject.priceTier = ""
   uploadedImages.value = [null, null, null, null]
+  editingProject.value = null
 }
 
 function closeForm() {
   resetForm()
   showAddForm.value = false
+}
+
+function openEditForm(project) {
+  editingProject.value = project
+  newProject.title = project.title || ""
+  newProject.description = project.description || ""
+  newProject.category = project.category || ""
+  newProject.location = project.location || ""
+  newProject.dateLabel = project.dateLabel || ""
+  newProject.priceTier = project.priceTier || ""
+
+  // Pre-populate image slots with existing URLs as preview-only entries
+  const existingUrls = project.imageUrls?.length
+    ? project.imageUrls
+    : project.imageUrl
+      ? [project.imageUrl]
+      : []
+
+  uploadedImages.value = [null, null, null, null].map((_, i) =>
+    existingUrls[i] ? { preview: existingUrls[i], file: null } : null
+  )
+
+  showAddForm.value = true
 }
 
 async function loadPortfolioProjects() {
@@ -314,44 +340,64 @@ async function saveNewProject() {
       return
     }
 
-    // Upload all selected images to Firebase Storage and collect their download URLs
-    const filesToUpload = uploadedImages.value.filter((img) => img !== null)
-    let imageUrls = []
+    // Separate new file uploads from existing URL-only slots
+    const newFileSlots = uploadedImages.value.filter((img) => img?.file)
+    const existingUrlSlots = uploadedImages.value.filter((img) => img && !img.file)
 
-    if (filesToUpload.length > 0) {
+    let newImageUrls = []
+
+    if (newFileSlots.length > 0) {
       uploading.value = true
-      const uploadPromises = filesToUpload.map((img) => {
+      const uploadPromises = newFileSlots.map((img) => {
         const filename = `${Date.now()}_${img.file.name}`
         const fileRef = storageRef(storage, `portfolioImages/${user.uid}/${filename}`)
         return uploadBytes(fileRef, img.file).then((snapshot) =>
           getDownloadURL(snapshot.ref)
         )
       })
-      imageUrls = await Promise.all(uploadPromises)
+      newImageUrls = await Promise.all(uploadPromises)
       uploading.value = false
     }
 
-    // Use the first image as the primary imageUrl, store all in an array
+    // Preserve existing image URLs + append newly uploaded ones
+    const preservedUrls = existingUrlSlots.map((img) => img.preview)
+    const imageUrls = [...preservedUrls, ...newImageUrls]
     const imageUrl = imageUrls[0] || fallbackImage
 
-    await addDoc(collection(db, "portfolioProjects"), {
-      contractorId: user.uid,
-      title: newProject.title.trim(),
-      description: newProject.description.trim(),
-      category: newProject.category.trim(),
-      location: newProject.location.trim(),
-      dateLabel: newProject.dateLabel.trim(),
-      priceTier: newProject.priceTier.trim(),
-      imageUrl,
-      imageUrls,
-      createdAt: serverTimestamp(),
-    })
+    if (editingProject.value) {
+      // --- EDIT path ---
+      const projectRef = doc(db, "portfolioProjects", editingProject.value.id)
+      await updateDoc(projectRef, {
+        title: newProject.title.trim(),
+        description: newProject.description.trim(),
+        category: newProject.category.trim(),
+        location: newProject.location.trim(),
+        dateLabel: newProject.dateLabel.trim(),
+        priceTier: newProject.priceTier.trim(),
+        imageUrl,
+        imageUrls,
+      })
+    } else {
+      // --- ADD path ---
+      await addDoc(collection(db, "portfolioProjects"), {
+        contractorId: user.uid,
+        title: newProject.title.trim(),
+        description: newProject.description.trim(),
+        category: newProject.category.trim(),
+        location: newProject.location.trim(),
+        dateLabel: newProject.dateLabel.trim(),
+        priceTier: newProject.priceTier.trim(),
+        imageUrl,
+        imageUrls,
+        createdAt: serverTimestamp(),
+      })
+    }
 
     closeForm()
     await loadPortfolioProjects()
   } catch (error) {
     uploading.value = false
-    console.error("Error saving new project:", error)
+    console.error("Error saving project:", error)
     errorMessage.value = "Failed to save project."
   }
 }
@@ -463,8 +509,8 @@ onMounted(() => {
 .full-outline-btn {
   width: 100%;
   border: 1px solid #2958ec;
-  color: #2958ec;
-  background: white;
+  color: white;
+  background: #2958ec;
   border-radius: 10px;
   padding: 11px 14px;
   font-weight: 600;

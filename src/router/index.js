@@ -40,7 +40,12 @@ const router = createRouter({
   },
   { 
     path: '/contractor/:contractorId', 
-    component: () => import('../views/ContractorProfile.vue') }
+    component: () => import('../views/ContractorProfile.vue') 
+  },
+  {
+    path: '/job-details/:id',
+    component: () => import('@/views/ViewProjectDetails.vue')
+  }
 ]
 })
 
