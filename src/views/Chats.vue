@@ -140,7 +140,7 @@
  
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick } from "vue"
-import { useRouter } from "vue-router"
+import { useRouter, useRoute } from "vue-router"
 import { getAuth } from "firebase/auth"
 import {
   collection,
@@ -160,6 +160,7 @@ import ToolBarContractor from "@/components/ToolBarContractor.vue"
 import defaultAvatar from "@/assets/default-avatar.png"
  
 const router = useRouter()
+const route = useRoute()
 const auth = getAuth()
 const currentUid = auth.currentUser?.uid
  
@@ -344,6 +345,19 @@ onMounted(async () => {
   await resolveUserType()
   listenToConvos()
   loadAds()
+
+  // Auto-open a conversation if navigated from ContractorCard
+  const targetConvoId = route.query.convoId
+  if (targetConvoId) {
+    // Wait briefly for convos to load, then find and open it
+    const unwatch = watch(convos, (list) => {
+      const match = list.find(c => c.id === targetConvoId)
+      if (match) {
+        openConvo(match)
+        unwatch() // stop watching once found
+      }
+    }, { immediate: true })
+  }
 })
  
 onUnmounted(() => {

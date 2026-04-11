@@ -100,10 +100,10 @@
       </div>
 
       <div class="form-actions">
-        <button class="full-outline-btn" @click="closeForm" :disabled="uploading">Cancel</button>
-        <button class="primary-btn" @click="saveNewProject" :disabled="uploading">
+        <button class="save-project-btn" @click="saveNewProject" :disabled="uploading">
           {{ uploading ? 'Uploading...' : 'Save Project' }}
         </button>
+        <button class="full-outline-btn" @click="closeForm" :disabled="uploading">Cancel</button>
       </div>
     </div>
   </div>
@@ -381,6 +381,17 @@ onMounted(() => {
 }
 
 .primary-btn {
+  border: none;
+  background: #2958ec;
+  color: white;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-project-btn {
+  width: 100%;
   border: none;
   background: #2958ec;
   color: white;

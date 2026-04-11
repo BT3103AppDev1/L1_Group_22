@@ -1,44 +1,82 @@
 <template>
   <h2>Saved Contractors</h2>
-  <p class="subtext">Contractors you liked that may get back to you!</p>
+  <p class="subtext">Contractors you liked will appear here.</p>
 
-  <div class="opportunity-list">
-    <div class="opportunity-card" v-for="job in opportunities" :key="job.id">
-      <div class="opportunity-top">
+  <div v-if="loading" class="subtext">Loading...</div>
+
+  <div v-else-if="savedContractors.length === 0" class="subtext">
+    No saved contractors yet. Heart a contractor on the home page!
+  </div>
+
+  <div v-else class="saved-contractor-list">
+    <div
+      class="saved-contractor-card"
+      v-for="c in savedContractors"
+      :key="c.id"
+    >
+      <div class="saved-contractor-top">
         <div>
-          <h3>{{ job.title }}</h3>
-          <p class="subtext">Posted by {{ job.contractor }}</p>
-          <div class="opportunity-meta">
-            <span>📍 {{ job.location }}</span>
-            <span>{{ job.budget }}</span>
-            <span>Posted {{ job.date }}</span>
-          </div>  
+          <h3>{{ c.fullName }}</h3>
+          <p class="subtext">{{ c.skills?.[0] || 'General Contractor' }}</p>
+          <div class="saved-contractor-meta">
+            <span>📍 {{ c.location || '—' }}</span>
+            <span>⭐ {{ c.rating || 'No rating' }}</span>
+            <span>🛠️{{ c.yearsExperience ? c.yearsExperience + ' yrs exp' : '' }}</span>
+          </div>
         </div>
-        <span class="status-badge">{{ job.status }}</span>
+        <span v-if="c.verified" class="status-badge">Verified</span>
       </div>
-      
-      <div class="opportunity-actions">
-        <button class="primary-btn small-btn">Send Proposal</button>
-        <button class="secondary-btn small-btn">View Details</button>
+
+      <div class="saved-contractor-actions">
+        <button class="primary-btn small-btn" @click="router.push(`/contractor/${c.id}`)">
+          View Profile
+        </button>
+        <button class="secondary-btn small-btn" @click="unsave(c.id)">
+          Remove
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { auth, db } from '@/firebase.js'
+import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore'
 
-const opportunities = ref([
-    {
-      id: 1,
-      title: "Kitchen Renovation Needed",
-      contractor: "Sarah Johnson",
-      location: "Bishan",
-      budget: "$$$",
-      date: "2/20/2024",
-      status: "New",
-    },
-  ])
+const router = useRouter()
+const savedContractors = ref([])
+const loading = ref(true)
+
+onMounted(async () => {
+  const user = auth.currentUser
+  if (!user) return
+
+  const userSnap = await getDoc(doc(db, 'users', user.uid))
+  if (!userSnap.exists()) { loading.value = false; return }
+
+  const ids = userSnap.data().savedContractors || []
+
+  // Fetch each contractor's document in parallel
+  const fetches = ids.map(id => getDoc(doc(db, 'users', id)))
+  const snaps = await Promise.all(fetches)
+
+  savedContractors.value = snaps
+    .filter(s => s.exists())
+    .map(s => ({ id: s.id, ...s.data() }))
+
+  loading.value = false
+})
+
+async function unsave(contractorId) {
+  const user = auth.currentUser
+  if (!user) return
+  await updateDoc(doc(db, 'users', user.uid), {
+    savedContractors: arrayRemove(contractorId)
+  })
+  savedContractors.value = savedContractors.value.filter(c => c.id !== contractorId)
+}
 </script>
 
 <style scoped>
@@ -47,31 +85,31 @@ const opportunities = ref([
   margin-top: 0;
 }
 
-.opportunity-list {
+.saved-contractor-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin-top: 18px;
 }
 
-.opportunity-card {
+.saved-contractor-card {
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 22px;
 }
 
-.opportunity-top {
+.saved-contractor-top {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: start;
 }
 
-.opportunity-top h3 {
+.saved-contractor-top h3 {
   margin: 0 0 8px;
 }
 
-.opportunity-meta {
+.saved-contractor-meta {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;
@@ -88,7 +126,7 @@ const opportunities = ref([
   font-weight: 600;
 }
 
-.opportunity-actions {
+.saved-contractor-actions {
   display: flex;
   gap: 12px;
   margin-top: 18px;

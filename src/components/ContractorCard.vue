@@ -48,7 +48,7 @@
       </div>
 
       <div class="card-actions">
-        <button class="contact-btn" type="button" @click="$emit('contact', contractor)">
+        <button class="contact-btn" type="button" @click="contactContractor">
           Contact
         </button>
 
@@ -63,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import defaultAvatar from '@/assets/default-avatar.png'
 import starIcon from '@/assets/star-outline.svg'
@@ -72,6 +72,11 @@ import bagIcon from '@/assets/bag-outline.svg'
 import heartOutlineIcon from '@/assets/heart-outline.svg'
 import ReviewButton from '@/components/ReviewButton.vue'
 
+import { auth, db } from '@/firebase.js'
+import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+
+import { getOrCreateConversation } from '@/composables/useChat'
+
 const props = defineProps({
   contractor: {
     type: Object,
@@ -79,14 +84,43 @@ const props = defineProps({
   },
 })
 
-defineEmits(['contact'])
+// defineEmits(['contact'])
 
 const router = useRouter()
-
 const isFavourited = ref(false)
 
-function toggleFavourite() {
-  isFavourited.value = !isFavourited.value
+// Check if already saved when card mounts
+onMounted(async () => {
+  const user = auth.currentUser
+  if (!user) return
+  const snap = await getDoc(doc(db, 'users', user.uid))
+  if (snap.exists()) {
+    const saved = snap.data().savedContractors || []
+    isFavourited.value = saved.includes(props.contractor.id)
+  }
+})
+
+async function contactContractor() {
+  try {
+    const convoId = await getOrCreateConversation(props.contractor.id)
+    router.push({ path: '/chats', query: { convoId } })
+  } catch (e) {
+    console.error('Failed to open chat:', e)
+  }
+}
+
+async function toggleFavourite() {
+  const user = auth.currentUser
+  if (!user) return
+
+  const userRef = doc(db, 'users', user.uid)
+  if (isFavourited.value) {
+    await updateDoc(userRef, { savedContractors: arrayRemove(props.contractor.id) })
+    isFavourited.value = false
+  } else {
+    await updateDoc(userRef, { savedContractors: arrayUnion(props.contractor.id) })
+    isFavourited.value = true
+  }
 }
 
 function goToProfile() {
