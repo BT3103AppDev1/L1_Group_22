@@ -39,30 +39,28 @@
               </div> -->
 
               <!-- <br><hr> -->
-
-              <!-- <div class="dashboard-numbers">
-                <div class="dashboard-stat">
-                  <h1 style="color: blue;">3</h1>
-                  <div class="info-item">Total Projects</div>
-                </div>
-                <div class="dashboard-stat">
-                  <h1 style="color: green;">1</h1>
-                  <div class="info-item">Active</div>
-                </div>
-                <div class="dashboard-stat">
-                  <h1 style="color: red;">1</h1>
-                  <div class="info-item">In Progress</div>
-                </div>
-                
-                <div class="dashboard-stat">
-                  <h1>0</h1>
-                  <div class="info-item">Completed</div>
-                </div>
-              </div> -->
             </div>
 
             <div class="edit-wrap" v-if="isOwner">
               <button class="outline-btn" @click="editing = true">Edit Profile</button>
+            </div>
+            <div class="dashboard-numbers">
+              <div class="dashboard-stat">
+                <h1 class="stat-total">{{ projectStats.total }}</h1>
+                <div class="stat-label">Total Projects</div>
+              </div>
+              <div class="dashboard-stat">
+                <h1 class="stat-active">{{ projectStats.active }}</h1>
+                <div class="stat-label">Active</div>
+              </div>
+              <div class="dashboard-stat">
+                <h1 class="stat-progress">{{ projectStats.inProgress }}</h1>
+                <div class="stat-label">In Progress</div>
+              </div>
+              <div class="dashboard-stat">
+                <h1 class="stat-completed">{{ projectStats.completed }}</h1>
+                <div class="stat-label">Completed</div>
+              </div>
             </div>
           </div>
         </template>
@@ -184,7 +182,7 @@
   import { onMounted, reactive, ref, computed } from "vue"
   import { useRoute } from "vue-router"
   import { auth, db } from "@/firebase.js"
-  import { doc, getDoc, setDoc } from "firebase/firestore"
+  import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
 
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   
@@ -259,6 +257,13 @@ const isOwner = computed(() =>
   editForm.yearsExperience = homeowner.yearsExperience
   editForm.skills = [...homeowner.skills]
 }
+
+const projectStats = reactive({
+  total: 0,
+  active: 0,
+  inProgress: 0,
+  completed: 0,
+})
 
 async function loadHomeownerProfile() {
   try {
@@ -361,10 +366,36 @@ async function loadHomeownerProfile() {
     newSkill.value = ""
     editing.value = false
   }
-  
+
+  async function loadProjectStats() {
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, 'portfolioProjects'),
+          where('homeownerId', '==', profileUid.value)
+        )
+      )
+
+      projectStats.total = snap.size
+      projectStats.active = 0
+      projectStats.inProgress = 0
+      projectStats.completed = 0
+
+      snap.docs.forEach((d) => {
+        const status = d.data().status
+        if (status === 'active') projectStats.active++
+        else if (status === 'inProgress') projectStats.inProgress++
+        else if (status === 'completed') projectStats.completed++
+      })
+    } catch (e) {
+      console.error('Failed to load project stats', e)
+    }
+  }
   onMounted(() => {
-  loadHomeownerProfile()
-})
+    loadHomeownerProfile()
+    loadProjectStats()
+  })
+
   </script>
   
   <style scoped>
@@ -469,12 +500,15 @@ async function loadHomeownerProfile() {
   
   .profile-top {
     display: grid;
-    grid-template-columns: 110px 1fr 130px;
-    gap: 24px;
+    grid-template-columns: 110px 1fr auto;
+    grid-template-rows: auto auto;
+    gap: 0 24px;
     align-items: start;
   }
   
   .avatar {
+    grid-column: 1;
+    grid-row: 1;
     width: 96px;
     height: 96px;
     border-radius: 50%;
@@ -486,6 +520,11 @@ async function loadHomeownerProfile() {
     font-size: 46px;
     font-weight: 700;
     box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  }
+
+  .profile-main {
+    grid-column: 2;
+    grid-row: 1;
   }
   
   .name-row {
@@ -561,6 +600,8 @@ async function loadHomeownerProfile() {
   }
   
   .edit-wrap {
+    grid-column: 3;
+    grid-row: 1;
     display: flex;
     justify-content: flex-end;
   }
@@ -950,4 +991,35 @@ async function loadHomeownerProfile() {
       justify-content: flex-start;
     }
   }
+
+  .dashboard-numbers {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    justify-content: space-around;   /* evenly spread across full width */
+    padding-top: 20px;
+    margin-top: 16px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .dashboard-stat {
+    text-align: center;
+  }
+
+  .dashboard-stat h1 {
+    margin: 0 0 4px;
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: #6b7280;
+  }
+
+  .stat-total     { color: #2254f5; }
+  .stat-active    { color: #16a34a; }
+  .stat-progress  { color: #ea580c; }
+  .stat-completed { color: #111827; }
+
   </style>

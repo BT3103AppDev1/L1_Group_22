@@ -22,82 +22,38 @@
     </div>
   </div>
 
-  <div class="review-list">
-      <!-- <div class="review-card" v-for="review in reviews" :key="review.id"> -->
+  <div v-if="loading" class="status-text">Loading reviews...</div>
+  <div v-else-if="errorMessage" class="status-text error-text">{{ errorMessage }}</div>
+  <div v-else-if="reviews.length === 0" class="status-text">No reviews given yet.</div>
+
+  <div v-else class="review-list">
     <ReviewCard
       v-for="review in reviews"
       :key="review.id"
       :review="review"
     />
-        <!-- <div class="review-card-top">
-          <div>
-            <h3>{{ review.name }}</h3>
-            <p class="subtext">{{ review.project }}</p>
-          </div>
-
-          <div class="review-right">
-            <div class="review-stars">★★★★★</div>
-            <div class="review-date">{{ review.date }}</div>
-          </div>
-        </div>
-
-        <p class="review-text">{{ review.comment }}</p>
-      </div> -->
   </div>      
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from "vue"
+import { ref, computed, onMounted } from "vue"
+import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore"
+import { auth, db } from "@/firebase.js"
 import ReviewCard from "@/components/ReviewCard.vue"
 
-// const contractor = reactive({
-//     initial: "M",
-//     fullName: "Samson Lim",
-//     company: "Property Lim Brothers Renovation",
-//     rating: 4.8,
-//     reviewCount: 47,
-//     projectsCompleted: 152,
-//     email: "michael.tan@premiumreno.com",
-//     phone: "+65 8234 5678",
-//     location: "Jurong West, Singapore",
-//     yearsExperience: 12,
-//     skills: [
-//       "Kitchen Renovation",
-//       "Bathroom Remodeling",
-//       "Carpentry",
-//       "Flooring",
-//       "Painting",
-//       "Electrical Work",
-//     ],
-// })
+const props = defineProps({
+  homeownerId: {
+    type: String,
+    required: true,
+  },
+})
 
-// const reviewBreakdown = ref([
-//     { stars: 5, percent: 75 },
-//     { stars: 4, percent: 20 },
-//     { stars: 3, percent: 3 },
-//     { stars: 2, percent: 1 },
-//     { stars: 1, percent: 1 },
-// ])
-
-// const reviews = ref([]) //use this once all is well
-  
-const reviews = ref([ //placeholder that becomes overridden if contractor is logged in. replace with above once everything is sorted
-    {
-      id: 1,
-      reviewerId: "Sarah Placeholder",
-      projectTitle: "Kitchen Renovation",
-      createdAt: "2/15/2024",
-      rating: 4,
-      comment:
-        "Excellent work! Michael and his team did an amazing job on our kitchen. Very professional and completed on time.",
-    },
-])
-
-import { computed } from "vue" //from here --->
+const reviews = ref([])
+const loading = ref(true)
+const errorMessage = ref("")
 
 const averageRating = computed(() => {
   if (reviews.value.length === 0) return 0
-
   const total = reviews.value.reduce((sum, r) => sum + (r.rating || 0), 0)
   return (total / reviews.value.length).toFixed(1)
 })
@@ -105,100 +61,57 @@ const averageRating = computed(() => {
 const reviewCount = computed(() => reviews.value.length)
 
 const reviewBreakdown = computed(() => {
-  const counts = [0, 0, 0, 0, 0] // index 0 = 1★, index 4 = 5★
-
+  const counts = [0, 0, 0, 0, 0]
   reviews.value.forEach((r) => {
-    if (r.rating >= 1 && r.rating <= 5) {
-      counts[r.rating - 1]++
-    }
+    if (r.rating >= 1 && r.rating <= 5) counts[r.rating - 1]++
   })
-
   const total = reviews.value.length || 1
-
-  return [5, 4, 3, 2, 1].map((stars) => {
-    const count = counts[stars - 1]
-    return {
-      stars,
-      percent: Math.round((count / total) * 100),
-    }
-  })
-})                              //<--- to here is reviewbreakdown scoreboard code
-
-import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore"
-import { auth, db } from "@/firebase.js"
-
-const errorMessage = ref("")
+  return [5, 4, 3, 2, 1].map((stars) => ({
+    stars,
+    percent: Math.round((counts[stars - 1] / total) * 100),
+  }))
+})
 
 async function loadReviews() {
   try {
-    // loading.value = true
+    loading.value = true
     errorMessage.value = ""
-
-    const user = auth.currentUser
-    if (!user) {
-      errorMessage.value = "No logged-in user found."
-      return
-    }
-
-    const userRef = doc(db, "users", user.uid)
-    const userSnap = await getDoc(userRef)
-
-    if (!userSnap.exists()) {
-      errorMessage.value = "User profile not found."
-      return
-    }
-
-    // const userData = userSnap.data()
-
-    // if (userData.userType !== "homeowner") {
-    //   errorMessage.value = "Only homeowners can add reviews."
-    //   return
-    // }
 
     const q = query(
       collection(db, "customerReviews"),
-      where("reviewerId", "==", user.uid),
+      where("reviewerId", "==", props.homeownerId),
       orderBy("createdAt", "desc")
     )
 
     const snapshot = await getDocs(q)
 
-    // reviews.value = snapshot.docs.map((reviewDoc) => ({ //this was limited to showing id only
-    //   id: reviewDoc.id,
-    //   ...reviewDoc.data(),
-    // }))
-    const reviewsWithNames = await Promise.all(
+    reviews.value = await Promise.all(
       snapshot.docs.map(async (reviewDoc) => {
-        const reviewData = reviewDoc.data()
+        const data = reviewDoc.data()
 
-        // fetch reviewer info
-        const reviewerRef = doc(db, "users", reviewData.targetId)
-        const reviewerSnap = await getDoc(reviewerRef)
-
-        let reviewerName = "Unknown User"
-
-        if (reviewerSnap.exists()) {
-          const reviewerData = reviewerSnap.data()
-          reviewerName =
-            reviewerData.fullName + " — " +reviewerData.username + ""
-            || "User"
+        // Fetch the contractor's name that this review was written about
+        let reviewerName = "Unknown Contractor"
+        try {
+          const targetSnap = await getDoc(doc(db, "users", data.targetId))
+          if (targetSnap.exists()) {
+            reviewerName = targetSnap.data().fullName || "Unknown Contractor"
+          }
+        } catch (e) {
+          console.error("Failed to fetch contractor name", e)
         }
 
         return {
           id: reviewDoc.id,
-          ...reviewData,
+          ...data,
           reviewerName,
         }
       })
     )
-
-    reviews.value = reviewsWithNames
-
   } catch (error) {
-    console.error("Error submitting review:", error)
-    errorMessage.value = "Failed to submit review."
+    console.error("Error loading reviews:", error)
+    errorMessage.value = "Failed to load reviews."
   } finally {
-    // loading.value = false
+    loading.value = false
   }
 }
 
@@ -275,6 +188,15 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 16px;
+  }
+  .status-text {
+    padding: 18px 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  .error-text {
+    color: #dc2626;
   }
   
   

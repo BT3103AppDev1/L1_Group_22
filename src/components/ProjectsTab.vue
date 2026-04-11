@@ -50,6 +50,15 @@
             </select>
           </div>
 
+          <div class="field">
+            <label>Status</label>
+            <select v-model="newProject.status">
+              <option value="active">Active</option>
+              <option value="inProgress">In Progress</option>
+              <option value="completed">Completed</option>
+            </select>
+          </div>
+
           <!-- Image Upload Slots -->
           <div class="field">
             <label>Project Images</label>
@@ -101,8 +110,12 @@
         </div>
 
         <div class="form-actions">
-          <button class="save-project-btn" @click="saveNewProject" :disabled="uploading">
-            {{ uploading ? 'Uploading...' : 'Save Project' }}
+          <button
+            class="save-project-btn"
+            @click="editingProject ? saveEditedProject() : saveNewProject()"
+            :disabled="uploading"
+          >
+            {{ uploading ? 'Uploading...' : editingProject ? 'Save Changes' : 'Save Project' }}
           </button>
           <button class="full-outline-btn" @click="closeForm" :disabled="uploading">Cancel</button>
         </div>
@@ -131,10 +144,14 @@
                 <div class="project-tags">
                     <span class="small-tag">{{ project.category }}</span>
                     <span class="small-tag">{{ project.location }}</span>
-                    <span class="small-tag">{{ project.date }}</span>
+                    <span class="small-tag">{{ project.dateLabel }}</span>
+                    <span class="small-tag status-tag" :class="project.status">
+                      {{ statusLabel(project.status) }}
+                    </span>
                 </div>
-
-                <button class="full-outline-btn" v-if="isOwner()">Edit Project</button>
+                <button class="full-outline-btn" v-if="isOwner()" @click="openEditForm(project)">
+                  Edit Project
+                </button>
             </div>
         </div>
     </div>
@@ -154,6 +171,7 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  updateDoc,
 } from "firebase/firestore"
 
 
@@ -174,6 +192,7 @@ const loading = ref(true)
 const uploading = ref(false)
 const errorMessage = ref("")
 const showAddForm = ref(false)
+const editingProject = ref(null)
 
 const fallbackImage =
   "https://joshgrilli.wordpress.com/wp-content/uploads/2010/11/800px-100_2250.jpg?w=600"
@@ -186,6 +205,7 @@ const newProject = reactive({
   location: "",
   dateLabel: "",
   priceTier: "",
+  status: "active",
 })
 
 // Image upload state — 4 slots
@@ -225,11 +245,13 @@ function resetForm() {
   newProject.dateLabel = ""
   newProject.priceTier = ""
   uploadedImages.value = [null, null, null, null]
+  newProject.status = "active"
 }
 
 function closeForm() {
   resetForm()
   showAddForm.value = false
+  editingProject.value = null
 }
 
 async function loadPortfolioProjects() {
@@ -336,8 +358,8 @@ async function saveNewProject() {
     // Use the first image as the primary imageUrl, store all in an array
     const imageUrl = imageUrls[0] || fallbackImage
 
-    await addDoc(collection(db, "portfolioProjects"), {
-      homeownerId : user.uid,
+    await addDoc(collection(db, 'portfolioProjects'), {
+      homeownerId: auth.currentUser.uid,
       title: newProject.title.trim(),
       description: newProject.description.trim(),
       category: newProject.category.trim(),
@@ -346,6 +368,7 @@ async function saveNewProject() {
       priceTier: newProject.priceTier.trim(),
       imageUrl,
       imageUrls,
+      status: 'active',   // ← add this
       createdAt: serverTimestamp(),
     })
 
@@ -356,6 +379,85 @@ async function saveNewProject() {
     console.error("Error saving new project:", error)
     errorMessage.value = "Failed to save project."
   }
+}
+
+function openEditForm(project) {
+  editingProject.value = project
+
+  newProject.title = project.title || ''
+  newProject.description = project.description || ''
+  newProject.category = project.category || ''
+  newProject.location = project.location || ''
+  newProject.dateLabel = project.dateLabel || project.date || ''
+  newProject.priceTier = project.priceTier || project.priceRange || ''
+  newProject.status = project.status || "active"
+
+  // Pre-fill image previews from existing saved URLs
+  uploadedImages.value = [null, null, null, null]
+  const urls = project.imageUrls || (project.imageUrl ? [project.imageUrl] : [])
+  urls.slice(0, 4).forEach((url, i) => {
+    uploadedImages.value[i] = { file: null, preview: url }
+  })
+
+  showAddForm.value = true
+}
+
+async function saveEditedProject() {
+  if (
+    !newProject.title.trim() || !newProject.description.trim() ||
+    !newProject.category.trim() || !newProject.location.trim() ||
+    !newProject.dateLabel.trim() || !newProject.priceTier.trim()
+  ) {
+    alert('Please fill in all required fields.')
+    return
+  }
+
+  try {
+    uploading.value = true
+
+    // Upload any newly selected files; keep existing URLs for slots with no new file
+    const imageUrls = []
+    for (let i = 0; i < 4; i++) {
+      const slot = uploadedImages.value[i]
+      if (!slot) continue
+
+      if (slot.file) {
+        // New file — upload it
+        const path = `portfolioProjects/${auth.currentUser.uid}/${Date.now()}_${i}`
+        const sRef = storageRef(storage, path)
+        await uploadBytes(sRef, slot.file)
+        imageUrls.push(await getDownloadURL(sRef))
+      } else if (slot.preview) {
+        // Existing URL — keep it
+        imageUrls.push(slot.preview)
+      }
+    }
+
+    const projectRef = doc(db, 'portfolioProjects', editingProject.value.id)
+    await updateDoc(projectRef, {
+      title: newProject.title.trim(),
+      description: newProject.description.trim(),
+      category: newProject.category.trim(),
+      location: newProject.location.trim(),
+      dateLabel: newProject.dateLabel.trim(),
+      priceTier: newProject.priceTier.trim(),
+      imageUrl: imageUrls[0] || null,
+      imageUrls,
+      status: newProject.status,
+    })
+
+    closeForm()
+    await loadPortfolioProjects()
+  } catch (error) {
+    console.error('Error updating project:', error)
+    errorMessage.value = 'Failed to update project.'
+  } finally {
+    uploading.value = false
+  }
+}
+
+function statusLabel(status) {
+  return { active: 'Active', inProgress: 'In Progress', completed: 'Completed' }[status] || 'Active'
 }
 
 onMounted(() => {
@@ -664,4 +766,8 @@ onMounted(() => {
   gap: 10px;
   margin-top: 18px;
 }
+
+.status-tag.active     { background: #dcfce7; color: #15803d; }
+.status-tag.inProgress { background: #fef9c3; color: #a16207; }
+.status-tag.completed  { background: #e0e7ff; color: #3730a3; }
 </style>
