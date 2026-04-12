@@ -1,128 +1,168 @@
 <template>
-    <h2>Project Opportunities</h2>
-    <p class="subtext">Projects posted by homeowners looking for contractors</p>
-  
-    <div class="opportunity-list">
-        <div class="opportunity-card" v-for="job in opportunities" :key="job.id">
-            <div class="opportunity-top">
-                <div>
-                    <h3>{{ job.title }}</h3>
-                    <p class="subtext">Posted by {{ job.homeowner }}</p>
-                    <div class="opportunity-meta">
-                        <span>📍 {{ job.location }}</span>
-                        <span>{{ job.budget }}</span>
-                        <span>Posted {{ job.date }}</span>
-                    </div>
-                </div>
-  
-                <span class="status-badge">{{ job.status }}</span>
-            </div>
-  
-            <div class="opportunity-actions">
-                <button class="primary-btn small-btn">Send Proposal</button>
-                <button class="secondary-btn small-btn">View Details</button>
-            </div>
-        </div>
-    </div>
+  <h2 class="section-title">Project Opportunities</h2>
+  <p class="subtext">Projects shared with you by homeowners</p>
+
+  <div v-if="loading" class="empty-state">Loading opportunities…</div>
+  <div v-else-if="opportunities.length === 0" class="empty-state">
+    No projects shared with you yet.
+  </div>
+
+  <div v-else class="opportunity-list">
+    <JobOpportunityCard
+      v-for="job in opportunities"
+      :key="job.id"
+      :job="job"
+      @proposal="sendProposal"
+      @details="viewDetails"
+      @contact="contactHomeowner"
+    />
+  </div>
 </template>
 
 <script setup>
-import { reactive, ref } from "vue"
+import { ref, onMounted } from "vue"
+import { useRouter } from "vue-router"
+import { getAuth } from "firebase/auth"
+import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore"
+import { db } from "@/firebase"
+import JobOpportunityCard from "@/components/JobOpportunityCard.vue"
 
-const opportunities = ref([
-    {
-      id: 1,
-      title: "Kitchen Renovation Needed",
-      homeowner: "Sarah Johnson",
-      location: "Bishan",
-      budget: "$$$",
-      date: "2/20/2024",
-      status: "New",
-    },
-])
+const router = useRouter()
+const auth = getAuth()
+const currentUid = auth.currentUser?.uid
+
+const opportunities = ref([])
+const loading = ref(true)
+
+onMounted(async () => {
+  if (!currentUid) return
+  try {
+    const convoSnap = await getDocs(
+      query(collection(db, "conversations"), where("contractorId", "==", currentUid))
+    )
+
+    const results = []
+
+    for (const convoDoc of convoSnap.docs) {
+      const homeownerId = convoDoc.data().homeownerId
+
+      const msgSnap = await getDocs(
+        collection(db, "conversations", convoDoc.id, "messages")
+      )
+
+      const projectMessages = msgSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(m => m.type === "projectLink")
+
+      if (projectMessages.length === 0) continue
+
+      let homeownerName = "Homeowner"
+      try {
+        const userSnap = await getDoc(doc(db, "users", homeownerId))
+        if (userSnap.exists()) {
+          const u = userSnap.data()
+          homeownerName = u.fullName || u.username || "Homeowner"
+        }
+      } catch (e) {
+        console.error("Failed to fetch homeowner", e)
+      }
+
+      const latest = projectMessages[projectMessages.length - 1]
+      const snap = latest.projectSnapshot || {}
+
+      let projectData = snap;
+
+      if (snap.projectId) {
+        try {
+          const projectDoc = await getDoc(doc(db, "portfolioProjects", snap.projectId));
+          console.log(snap.projectId)
+          if (projectDoc.exists()) {
+            projectData = { ...snap, ...projectDoc.data() }; // merge, so snapshot fields take precedence if needed
+          }
+        } catch (e) {
+          console.warn("Could not fetch full project data", e);
+        }
+      }
+
+      
+
+      results.push({
+          id: `${convoDoc.id}_${latest.id}`,
+          projectId: snap.projectId,
+          convoId: convoDoc.id,
+          homeownerId,
+          title: snap.title || projectData.title || "Untitled Project",
+          homeowner: homeownerName,
+          location: snap.location || projectData.location || "",
+          budget: snap.priceTier || projectData.priceTier || "",
+          description: snap.description || projectData.description || "",
+          
+          // ── Improved Image Handling ──
+          imageUrl: projectData.imageUrl 
+                  || projectData.imageUrls?.[0] 
+                  || snap.imageUrl 
+                  || snap.imageUrls?.[0] 
+                  || "",
+
+          date: latest.sentAt?.toDate
+            ? latest.sentAt.toDate().toLocaleDateString("en-GB", { 
+                day: "2-digit", 
+                month: "short", 
+                year: "numeric" 
+              })
+            : "",
+
+          status: snap.urgency || projectData.urgency || "Open",
+        })
+    }
+
+    opportunities.value = results
+  } catch (e) {
+    console.error("Failed to load opportunities", e)
+  }
+  loading.value = false
+})
+
+function sendProposal(job) {
+  if (job.projectId) router.push(`/contractor/send-proposal/${job.projectId}`)
+}
+
+function viewDetails(job) {
+  if (job.projectId) router.push(`/job-details/${job.projectId}`)
+}
+
+function contactHomeowner(job) {
+  if (job.convoId) router.push({ path: "/chats", query: { convoId: job.convoId } })
+}
 </script>
 
 <style scoped>
-  .primary-btn {
-    border: none;
-    background: #2958ec;
-    color: white;
-    border-radius: 10px;
-    padding: 11px 16px;
-    font-weight: 600;
-    cursor: pointer;
-  }
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 4px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
-  .secondary-btn {
-    border: 1px solid #d1d5db;
-    background: white;
-    color: #111827;
-    border-radius: 10px;
-    padding: 11px 16px;
-    font-weight: 600;
-    cursor: pointer;
-  }
+.subtext {
+  color: #6b7280;
+  margin: 0 0 20px;
+  font-size: 14px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
-  .small-tag {
-    background: #f3f4f6;
-    color: #4b5563;
-    padding: 5px 8px;
-    border-radius: 8px;
-    font-size: 12px;
-  }
+.empty-state {
+  color: #9ca3af;
+  font-size: 14px;
+  padding: 40px 0;
+  text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
 
-  .subtext {
-    color: #6b7280;
-    margin-top: 0;
-  }
-  
-  .opportunity-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 18px;
-  }
-  
-  .opportunity-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 22px;
-  }
-  
-  .opportunity-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    align-items: start;
-  }
-  
-  .opportunity-top h3 {
-    margin: 0 0 8px;
-  }
-  
-  .opportunity-meta {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    color: #4b5563;
-    margin-top: 10px;
-  }
-  
-  .status-badge {
-    background: #dcfce7;
-    color: #15803d;
-    border-radius: 999px;
-    padding: 7px 12px;
-    font-size: 13px;
-    font-weight: 600;
-  }
-  
-  .opportunity-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 18px;
-  }
-
-
-
+.opportunity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 </style>
