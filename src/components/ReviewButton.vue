@@ -1,150 +1,147 @@
 <template>
-    <div class="opportunity-actions">
-        <button class="primary-btn small-btn" @click="showReviewForm = true">Review</button>
+  <!-- Trigger button (hidden when autoOpen is true — parent controls opening) -->
+  <div v-if="!autoOpen" class="opportunity-actions">
+    <button class="primary-btn small-btn" @click="showReviewForm = true">Review</button>
+  </div>
+
+  <div v-if="showReviewForm" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Leave a Review</h3>
+        <button class="close-btn" @click="closeForm">×</button>
+      </div>
+
+      <div class="form-grid">
+        <!-- Rating -->
+        <div class="field">
+          <label>Rating</label>
+          <div class="star-row">
+            <select v-model="review.rating">
+              <option :value="null">Select</option>
+              <option :value="1">★</option>
+              <option :value="2">★★</option>
+              <option :value="3">★★★</option>
+              <option :value="4">★★★★</option>
+              <option :value="5">★★★★★</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Comment -->
+        <div class="field">
+          <label>Review</label>
+          <textarea
+            v-model="review.comment"
+            rows="4"
+            placeholder="Share your experience..."
+          ></textarea>
+        </div>
+
+        <!-- Project title (pre-filled if passed in) -->
+        <div class="field">
+          <label>Project</label>
+          <input v-model="review.projectTitle" type="text" />
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="full-outline-btn" @click="closeForm">Discard</button>
+        <button class="primary-btn" @click="submitReview">Submit</button>
+      </div>
     </div>
-    
-    <div v-if="showReviewForm" class="modal-backdrop">
-        <div class="modal-card">
-            <div class="modal-header">
-                <h3>Review</h3>
-                <button class="close-btn" @click="closeForm">×</button>
-            </div>
-        
-            <div class="form-grid">
-                <div class="field"> <!-- Rating -->
-                    <label>Rating</label>
-                    <div class="star-row">
-                        <select v-model="review.rating">
-                            <option :value="null">Select</option>
-                            <option :value="1">★</option>
-                            <option :value="2">★★</option>
-                            <option :value="3">★★★</option>
-                            <option :value="4">★★★★</option>
-                            <option :value="5">★★★★★</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="field">
-                    <label>Review</label> <!-- Comment field -->
-                    <textarea
-                    v-model="review.comment"
-                    rows="4"
-                    placeholder="Share your experience..."
-                    ></textarea>
-                </div>
-
-      
-                <div class="field">  <!-- Optional for now, should be req since not review is not specific to each project but rather the contractor -->
-                    <label>Project (optional)</label>
-                    <input v-model="review.projectTitle" type="text" />
-                </div>
-
-            </div>
-
-            <div class="form-actions">
-                <button class="full-outline-btn" @click="closeForm">Discard</button>
-                <button class="primary-btn" @click="submitReview">Submit</button>
-            </div>
-        </div>   
-    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref, reactive,  } from "vue"
+import { ref, reactive, watch } from "vue"
+import { addDoc, updateDoc, collection, serverTimestamp, doc, getDoc } from "firebase/firestore"
+import { auth, db } from "@/firebase.js"
 
 const props = defineProps({
-  contractorId: {
-    type: String,
-    required: true
-  }
+  contractorId: { type: String, required: true },
+  convoId:      { type: String, default: '' },       // ties review to this job
+  projectTitle: { type: String, default: '' },        // pre-filled from project snapshot
+  autoOpen:     { type: Boolean, default: false },    // true = parent controls visibility
 })
 
+const emit = defineEmits(['submitted', 'close'])
+
 const errorMessage = ref("")
+const showReviewForm = ref(props.autoOpen)
 
-const showReviewForm = ref(false)
-
+// Pre-fill project title when prop arrives
 const review = reactive({
-    rating: 0,
-    comment: "",
-    projectTitle: ""
+  rating: null,
+  comment: "",
+  projectTitle: props.projectTitle || "",
+})
+
+// If autoOpen switches to true after mount, open the modal
+watch(() => props.autoOpen, (val) => {
+  if (val) showReviewForm.value = true
 })
 
 function resetForm() {
-    review.rating = 0
-    review.comment = ""
-    review.projectTitle = ""
+  review.rating = null
+  review.comment = ""
+  review.projectTitle = props.projectTitle || ""
 }
 
 function closeForm() {
-    resetForm()
-    showReviewForm.value = false
+  resetForm()
+  showReviewForm.value = false
+  emit('close')
 }
 
-import { addDoc, collection, serverTimestamp , doc , getDoc } from "firebase/firestore"
-import { auth, db } from "@/firebase.js"
-
-async function submitReview() { 
+async function submitReview() {
   try {
     errorMessage.value = ""
 
     const user = auth.currentUser
-    if (!user) {
-      // errorMessage.value = "No logged-in user found."
-      alert("No logged-in user found.") //i dont understand the errorMessage (yet) so imma do this first
-      return
-    }
+    if (!user) { alert("No logged-in user found."); return }
 
-    const userRef = doc(db, "users", user.uid)
-    const userSnap = await getDoc(userRef)
+    const userSnap = await getDoc(doc(db, "users", user.uid))
+    if (!userSnap.exists()) { alert("User profile not found."); return }
 
-    if (!userSnap.exists()) {
-      // errorMessage.value = "User profile not found."
-      alert("User profile not found.")
-      return
-    }
-
-    const userData = userSnap.data()
-
-    if (userData.userType !== "homeowner") {
-      // errorMessage.value = "Only homeowners can add reviews."
+    if (userSnap.data().userType !== "homeowner") {
       alert("Only homeowners can add reviews.")
       return
     }
 
     if (!review.rating || !review.comment.trim()) {
-      // errorMessage.value = "Please fill in all required fields."
-      alert("Please fill in all required fields.")
+      alert("Please fill in rating and comment.")
       return
     }
 
+    // Write the review
     await addDoc(collection(db, "customerReviews"), {
-      
-      reviewerId: user.uid,   // homeowner
-      targetId: props.contractorId, // need to figure this out eventually
-      rating: review.rating,
-      comment: review.comment,
+      reviewerId:   user.uid,
+      targetId:     props.contractorId,
+      convoId:      props.convoId || null,
+      rating:       review.rating,
+      comment:      review.comment,
       projectTitle: review.projectTitle || null,
-      createdAt: serverTimestamp()
-
+      createdAt:    serverTimestamp(),
     })
 
+    // Update the conversation's jobSituation to "reviewed"
+    if (props.convoId) {
+      await updateDoc(doc(db, "conversations", props.convoId), {
+        jobSituation: "reviewed",
+      })
+    }
+
     closeForm()
-
-    alert("Review Submitted!")
-
-    // await loadReviews()
+    emit('submitted')
+    alert("Review submitted!")
   } catch (error) {
     console.error("Error submitting review:", error)
-    errorMessage.value = "Failed to submit review."
+    alert("Failed to submit review.")
   }
 }
-
-
 </script>
 
 <style>
-
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -170,9 +167,7 @@ async function submitReview() {
   margin-bottom: 18px;
 }
 
-.modal-header h3 {
-  margin: 0;
-}
+.modal-header h3 { margin: 0; }
 
 .close-btn {
   border: none;
@@ -181,15 +176,9 @@ async function submitReview() {
   cursor: pointer;
 }
 
-.form-grid {
-  display: grid;
-  gap: 14px;
-}
+.form-grid { display: grid; gap: 14px; }
 
-.field {
-  display: grid;
-  gap: 6px;
-}
+.field { display: grid; gap: 6px; }
 
 .field input,
 .field textarea,
@@ -229,5 +218,4 @@ async function submitReview() {
   font-weight: 600;
   cursor: pointer;
 }
-
 </style>

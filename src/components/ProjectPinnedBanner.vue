@@ -23,20 +23,109 @@
       </p>
     </div>
 
-    <!-- Right: CTA -->
-    <button class="ppb-btn" @click="$emit('view')">
-      View Project →
-      
-    </button>
+    <!-- Right: View + Job action buttons -->
+    <div class="ppb-actions">
+      <!-- View project -->
+      <button class="ppb-btn" @click="$emit('view')">
+        View Project <span>→</span>
+      </button>
+
+      <!-- ── Job situation action button ── -->
+
+      <!-- HOMEOWNER: none → Offer -->
+      <button
+        v-if="userType === 'homeowner' && jobSituation === 'none'"
+        class="ppb-job-btn ppb-offer"
+        @click="$emit('offer')"
+      >
+        Offer Job
+      </button>
+
+      <!-- HOMEOWNER: offered → disabled label -->
+      <div v-else-if="userType === 'homeowner' && jobSituation === 'offered'" class="ppb-status-chip ppb-chip-grey">
+        Offered ✓
+      </div>
+
+      <!-- HOMEOWNER: accepted → disabled label -->
+      <div v-else-if="userType === 'homeowner' && jobSituation === 'accepted'" class="ppb-status-chip ppb-chip-grey">
+        Accepted ✓
+      </div>
+
+      <!-- HOMEOWNER: completed → Confirm Completion -->
+      <button
+        v-else-if="userType === 'homeowner' && jobSituation === 'completed'"
+        class="ppb-job-btn ppb-confirm"
+        @click="$emit('confirm'); showReview = true"
+      >
+        Confirm Completion
+      </button>
+
+      <ReviewButton
+        v-if="showReview"
+        :contractorId="contractorId"
+      />
+
+      <!-- HOMEOWNER: reviewed → done label -->
+      <div v-else-if="userType === 'homeowner' && jobSituation === 'reviewed'" class="ppb-status-chip ppb-chip-green">
+        Review Submitted ✓
+      </div>
+
+      <!-- CONTRACTOR: offered → Accept Job -->
+      <button
+        v-else-if="userType === 'contractor' && jobSituation === 'offered'"
+        class="ppb-job-btn ppb-accept"
+        @click="$emit('accept')"
+      >
+        Accept Job
+      </button>
+
+      <!-- CONTRACTOR: mark complete -->
+      <button
+        v-else-if="userType === 'contractor' && jobSituation === 'accepted'"
+        class="ppb-job-btn ppb-complete"
+        @click="$emit('markComplete')"
+      >
+        Mark as Completed
+      </button>
+
+      <!-- CONTRACTOR: completed → awaiting -->
+      <div v-else-if="userType === 'contractor' && jobSituation === 'completed'" class="ppb-status-chip ppb-chip-grey">
+        Awaiting Confirmation…
+      </div>
+
+      <!-- CONTRACTOR: confirmed or reviewed → done -->
+      <div v-else-if="userType === 'contractor' && (jobSituation === 'confirmed' || jobSituation === 'reviewed')" class="ppb-status-chip ppb-chip-green">
+        Job Confirmed ✓
+      </div>
+    </div>
   </div>
+
+  <!-- Review modal (homeowner only, triggered by 'review' emit handled here via internal flag) -->
 </template>
 
 <script setup>
-defineProps({
-  project: { type: Object, required: true },
-})
-defineEmits(['view'])
+import { ref } from 'vue'
+import ReviewButton from '@/components/ReviewButton.vue'
 
+const props = defineProps({
+  project:      { type: Object,  required: true },
+  userType:     { type: String,  required: true },   // 'homeowner' | 'contractor'
+  jobSituation: { type: String,  default: 'none' },  // state machine value
+  contractorId: { type: String,  default: '' },
+  convoId:      { type: String,  default: '' },
+})
+
+const emit = defineEmits(['view', 'offer', 'accept', 'markComplete', 'confirm', 'review', 'reviewSubmitted'])
+
+const showReview = ref(false)
+
+// When parent emits 'review' we open the modal internally
+function openReview() {
+  showReview.value = true
+}
+
+// Expose so parent (Chats.vue) can call if needed, but we also handle it via the button directly
+defineExpose({ openReview })
 </script>
 
 <style scoped>
@@ -123,10 +212,7 @@ defineEmits(['view'])
   margin-bottom: 3px;
 }
 
-.ppb-budget {
-  font-weight: 700;
-  color: #ff5a1f;
-}
+.ppb-budget { font-weight: 700; color: #ff5a1f; }
 
 .ppb-desc {
   font-size: 11px;
@@ -138,30 +224,60 @@ defineEmits(['view'])
   text-overflow: ellipsis;
 }
 
-/* ── CTA button ── */
-.ppb-btn {
+/* ── Right actions column ── */
+.ppb-actions {
   flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* View button */
+.ppb-btn {
   background: #2254f5;
   color: white;
   border: none;
-  border-radius: 10px;
-  padding: 8px 14px;
-  font-size: 12px;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  text-align: center;
-  line-height: 1.4;
+  white-space: nowrap;
   transition: background 0.15s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
 }
-
 .ppb-btn:hover { background: #1a42d4; }
 
-.ppb-btn-arrow {
+/* Job action buttons */
+.ppb-job-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
   font-size: 14px;
-  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s, background 0.15s;
 }
+.ppb-job-btn:hover { opacity: 0.88; }
+
+.ppb-offer    { background: #2254f5; color: white; }
+.ppb-accept   { background: #16a34a; color: white; }
+.ppb-complete { background: #2254f5; color: white; }
+.ppb-confirm  { background: #ea580c; color: white; }
+.ppb-review   { background: #ca8a04; color: white; }
+
+/* Status chips */
+.ppb-status-chip {
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.ppb-chip-grey  { background: #f3f4f6; color: #6b7280; }
+.ppb-chip-blue  { background: #eff4ff; color: #2254f5; }
+.ppb-chip-green { background: #dcfce7; color: #15803d; }
 </style>

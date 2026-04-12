@@ -71,7 +71,16 @@
             <ProjectPinnedBanner
               v-if="pinnedProject"
               :project="pinnedProject"
+              :user-type="userType"
+              :job-situation="jobSituation"
+              :contractor-id="convoContractorId"
+              :convo-id="selectedConvo?.id"
               @view="goToProject(pinnedProject.projectId)"
+              @offer="handleOffer"
+              @accept="handleAccept"
+              @mark-complete="handleMarkComplete"
+              @confirm="handleConfirm"
+              @review-submitted="handleReviewSubmitted"
             />
 
             <!-- Messages -->
@@ -252,6 +261,7 @@ import {
   orderBy,
   onSnapshot,
   addDoc,
+  updateDoc,
   doc,
   getDoc,
   serverTimestamp,
@@ -306,7 +316,10 @@ const pinnedProject = computed(() => {
   return projectMessages[projectMessages.length - 1].projectSnapshot || null
 })
 
-// ── File upload ──
+// ── Job situation ──
+const jobSituation = ref('none')
+const offeredProjectId = ref('')
+const convoContractorId = ref('')   // the other user's uid when homeowner is viewing
 const fileInputEl = ref(null)
 const pendingFile = ref(null)      // { file, previewUrl, name, size, type }
 const uploadProgress = ref(0)
@@ -367,6 +380,15 @@ function listenToConvos() {
     )
     convos.value = enriched
     loadingConvos.value = false
+
+    // Keep jobSituation in sync if this convo is already open
+    if (selectedConvo.value) {
+      const updated = enriched.find(c => c.id === selectedConvo.value.id)
+      if (updated) {
+        jobSituation.value = updated.jobSituation || 'none'
+        offeredProjectId.value = updated.offeredProjectId || ''
+      }
+    }
   })
 }
  
@@ -400,6 +422,15 @@ function openConvo(convo) {
   if (userType.value === "homeowner") {
     loadHomeownerProjects()
   }
+
+  // Sync jobSituation from convo doc
+  jobSituation.value = convo.jobSituation || 'none'
+  offeredProjectId.value = convo.offeredProjectId || ''
+
+  // Track who the contractor is (needed for ReviewButton)
+  convoContractorId.value = userType.value === 'homeowner'
+    ? convo.contractorId || ''
+    : ''
 }
  
 async function sendMessage() {
@@ -559,12 +590,71 @@ async function uploadAndSendFile() {
   })
 }
 
+
 function goToProject(projectId) {
   if (projectId) {
     router.push(`/job-details/${projectId}`)
   }
 }
- 
+
+// ─────────────────────────────────────────
+// Job situation handlers
+// ─────────────────────────────────────────
+async function handleOffer() {
+  if (!selectedConvo.value || !pinnedProject.value) return
+  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+    jobSituation: "offered",
+    offeredProjectId: pinnedProject.value.projectId,
+    offeredAt: serverTimestamp(),
+  })
+  jobSituation.value = "offered"
+}
+
+async function handleAccept() {
+  if (!selectedConvo.value) return
+  const projectId = selectedConvo.value.offeredProjectId || offeredProjectId.value
+  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+    jobSituation: "accepted",
+    acceptedAt: serverTimestamp(),
+  })
+  if (projectId) {
+    await updateDoc(doc(db, "portfolioProjects", projectId), {
+      status: "inProgress",
+      assignedContractorId: currentUid,
+      contractorId: currentUid,
+    })
+  }
+  jobSituation.value = "accepted"
+}
+
+async function handleMarkComplete() {
+  if (!selectedConvo.value) return
+  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+    jobSituation: "completed",
+    completedAt: serverTimestamp(),
+  })
+  jobSituation.value = "completed"
+}
+
+async function handleConfirm() {
+  if (!selectedConvo.value) return
+  const projectId = selectedConvo.value.offeredProjectId || offeredProjectId.value
+  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+    jobSituation: "confirmed",
+    confirmedAt: serverTimestamp(),
+  })
+  if (projectId) {
+    await updateDoc(doc(db, "portfolioProjects", projectId), {
+      status: "completed",
+    })
+  }
+  jobSituation.value = "confirmed"
+}
+
+function handleReviewSubmitted() {
+  jobSituation.value = "reviewed"
+}
+
 function scrollToBottom() {
   nextTick(() => {
     if (messagesEl.value) {
