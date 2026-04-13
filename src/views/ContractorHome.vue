@@ -69,7 +69,7 @@
               v-for="project in filteredJobs"
               :key="project.id"
               :project="project"
-              @propose="sendProposal"
+              @propose="handlePropose"
               @details="viewDetails"
             />
           </div>
@@ -280,8 +280,12 @@
     selectedUrgencies.value = []
   }
   
-  function sendProposal(job) {
-    router.push(`/contractor/send-proposal/${job.id}`)
+  // function sendProposal(job) {
+  //   router.push(`/contractor/send-proposal/${job.id}`)
+  // }
+
+  function handlePropose(project) {
+    router.push(`/contractor/send-proposal/${project.id}`)
   }
   
   function viewDetails(job) {

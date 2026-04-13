@@ -270,7 +270,7 @@ defineExpose({ openReview })
 /* Status chips */
 .ppb-status-chip {
   border-radius: 8px;
-  padding: 6px 10px;
+  padding: 10px 10px;
   font-size: 11px;
   font-weight: 700;
   text-align: center;

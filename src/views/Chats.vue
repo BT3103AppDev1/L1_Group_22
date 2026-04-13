@@ -17,7 +17,7 @@
         :class="{ active: activeTab === 'ads' }"
         @click="activeTab = 'ads'"
       >
-        Advertisements
+        Proposals
       </button>
     </div>
  
@@ -115,6 +115,12 @@
                 <FileMessage
                   v-else-if="msg.type === 'file'"
                   :msg="msg"
+                  :is-mine="msg.senderId === currentUid"
+                  :time="formatTime(msg.sentAt)"
+                />
+                <ProposalMessage
+                  v-else-if="msg.type === 'proposal'"
+                  :proposal="msg.proposalSnapshot"
                   :is-mine="msg.senderId === currentUid"
                   :time="formatTime(msg.sentAt)"
                 />
@@ -216,36 +222,43 @@
       </div>
     </div>
  
-    <!-- ───────────── ADS TAB ───────────── -->
+    <!-- ───────────── ADS / PROPOSALS TAB ───────────── -->
     <div v-if="activeTab === 'ads'" class="tab-content">
-      <div v-if="loadingAds" class="empty-hint centered">Loading advertisements...</div>
-      <div v-else-if="ads.length === 0" class="empty-hint centered">No advertisements yet.</div>
- 
-      <div v-else class="ads-grid">
-        <div v-for="ad in ads" :key="ad.id" class="ad-card">
-          <img
-            v-if="ad.imageUrl"
-            :src="ad.imageUrl"
-            class="ad-image"
-            :alt="ad.title"
-          />
-          <div class="ad-body">
-            <div class="ad-top-row">
-              <h3 class="ad-title">{{ ad.title }}</h3>
-              <span v-if="ad.badge" class="ad-badge">{{ ad.badge }}</span>
-            </div>
-            <p class="ad-desc">{{ ad.description }}</p>
-            <div class="ad-footer">
-              <span class="ad-from">{{ ad.contractorName }}</span>
-              <button
-                v-if="ad.ctaText"
-                class="ad-cta"
-                @click="handleAdCta(ad)"
-              >{{ ad.ctaText }}</button>
-            </div>
-          </div>
+
+      <!-- HOMEOWNER: show received proposals -->
+      <template v-if="userType === 'homeowner'">
+        <div v-if="loadingProposals" class="empty-hint centered">Loading proposals…</div>
+        <div v-else-if="proposals.length === 0" class="empty-hint centered">
+          No proposals received yet.
         </div>
-      </div>
+        <div v-else class="proposals-list">
+          <ProposalCard
+            v-for="proposal in proposals"
+            :key="proposal.id"
+            :proposal="proposal"
+            @message="openProposalChat(proposal)"
+            @view-profile="router.push(`/contractor/${proposal.contractorId}`)"
+            @decline="declineProposal(proposal)"
+          />
+        </div>
+      </template>
+
+      <!-- CONTRACTOR: show advertisements -->
+      <template v-else>
+        <div v-if="loadingProposals" class="empty-hint centered">Loading proposals…</div>
+        <div v-else-if="proposals.length === 0" class="empty-hint centered">
+          No proposals sent yet.
+        </div>
+        <div v-else class="proposals-list">
+          <ProposalCard
+            v-for="proposal in proposals"
+            :key="proposal.id"
+            :proposal="proposal"
+            :readonly="true"
+            @view-profile="router.push(`/contractor/${proposal.contractorId}`)"
+          />
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -275,7 +288,9 @@ import ProjectLinkMessage from "@/components/ProjectLinkMessage.vue"
 import ProjectPinnedBanner from "@/components/ProjectPinnedBanner.vue"
 import FileMessage from "@/components/FileMessage.vue"
 import defaultAvatar from "@/assets/default-avatar.png"
- 
+import ProposalCard from "@/components/ProposalCard.vue"
+import ProposalMessage from "@/components/ProposalMessage.vue" 
+
 const router = useRouter()
 const route = useRoute()
 const auth = getAuth()
@@ -331,6 +346,10 @@ const canSend = computed(() => {
     || selectedProject.value !== null
     || pendingFile.value !== null
 })
+
+// ── Proposals (homeowner view) ──
+const proposals = ref([])
+const loadingProposals = ref(true)
  
 // ── Unsubscribers ──
 let unsubConvos = null
@@ -505,6 +524,7 @@ async function loadHomeownerProjects() {
       )
     )
     homeownerProjects.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    .filter(p => p.status === 'active')
   } catch (e) {
     console.error("Failed to load projects", e)
   }
@@ -673,6 +693,103 @@ function handleClickOutside(e) {
 }
 
 // ─────────────────────────────────────────
+// Firestore — proposals (homeowner view)
+// ─────────────────────────────────────────
+async function loadProposals() {
+  if (!currentUid) return
+  loadingProposals.value = true
+  try {
+    const snap = await getDocs(
+      query(
+        collection(db, "proposals"),
+        where(userType.value === "homeowner" ? "homeownerId" : "contractorId", "==", currentUid)
+      )
+    )
+    const results = await Promise.all(
+      snap.docs.map(async (d) => {
+        const data = { id: d.id, ...d.data() }
+        if (data.contractorId) {
+          try {
+            const userSnap = await getDoc(doc(db, "users", data.contractorId))
+            if (userSnap.exists()) {
+              const u = userSnap.data()
+              data.contractorName     = u.fullName || u.username || "Contractor"
+              data.contractorPhoto    = u.photoURL || null
+              data.contractorRating   = u.rating || null
+              data.contractorLocation = u.location || null
+            }
+          } catch (e) {
+            console.error("Failed to fetch contractor info", e)
+          }
+        }
+        data.submittedDate = data.createdAt?.toDate
+          ? data.createdAt.toDate().toLocaleDateString("en-GB", {
+              day: "2-digit", month: "short", year: "numeric",
+            })
+          : ""
+        return data
+      })
+    )
+    // Sort from newest on top to oldest at bottom
+    proposals.value = results.sort((a, b) => {
+      const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+      const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+      return bTime - aTime
+    })
+  } catch (e) {
+    console.error("Failed to load proposals", e)
+  }
+  loadingProposals.value = false
+}
+
+async function openProposalChat(proposal) {
+  const { getOrCreateConversation } = await import("@/composables/useChat")
+  const convoId = await getOrCreateConversation(proposal.contractorId)
+
+  const msgRef = collection(db, "conversations", convoId, "messages")
+  const existing = await getDocs(
+    query(msgRef, where("type", "==", "proposal"), where("proposalId", "==", proposal.id))
+  )
+
+  if (existing.empty) {
+    await addDoc(msgRef, {
+      type: "proposal",
+      text: `I've submitted a proposal for your project: ${proposal.projectTitle}`,
+      senderId: proposal.contractorId,
+      senderRole: "contractor",
+      sentAt: serverTimestamp(),
+      proposalId: proposal.id,
+      proposalSnapshot: {
+        contractorName: proposal.contractorName || "Contractor",
+        priceRange:     proposal.priceRange || "",
+        duration:       proposal.duration || "",
+        coverLetter:    proposal.coverLetter || "",
+        projectTitle:   proposal.projectTitle || "",
+      },
+    })
+  }
+
+  activeTab.value = "chats"
+  const unwatch = watch(convos, (list) => {
+    const match = list.find(c => c.id === convoId)
+    if (match) {
+      openConvo(match)
+      unwatch()
+    }
+  }, { immediate: true })
+}
+
+async function declineProposal(proposal) {
+  if (!confirm(`Decline proposal from ${proposal.contractorName}?`)) return
+  try {
+    await updateDoc(doc(db, "proposals", proposal.id), { status: "declined" })
+    proposals.value = proposals.value.filter(p => p.id !== proposal.id)
+  } catch (e) {
+    console.error("Failed to decline proposal", e)
+  }
+}
+
+// ─────────────────────────────────────────
 // Firestore — advertisements
 // ─────────────────────────────────────────
 async function loadAds() {
@@ -715,6 +832,7 @@ onMounted(async () => {
   await resolveUserType()
   listenToConvos()
   loadAds()
+  loadProposals()
   document.addEventListener("click", handleClickOutside)
 
   // Auto-open a conversation if navigated from ContractorCard
@@ -1147,6 +1265,12 @@ onUnmounted(() => {
 /* ─────────────────────────────────────
    ADS TAB
 ───────────────────────────────────── */
+.proposals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
 .ads-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
