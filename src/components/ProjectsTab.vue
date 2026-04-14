@@ -16,22 +16,22 @@
         <div class="form-grid">
           <div class="field">
             <label>Project Title</label>
-            <input v-model="newProject.title" type="text" />
+            <input v-model="newProject.title" type="text" placeholder="Enter Project Name" />
           </div>
 
           <div class="field">
             <label>Description</label>
-            <textarea v-model="newProject.description" rows="4"></textarea>
+            <textarea v-model="newProject.description" rows="4" placeholder="Describe the work that needs to be done"></textarea>
           </div>
 
           <div class="field">
             <label>Category</label>
-            <input v-model="newProject.category" type="text" />
+            <input v-model="newProject.category" type="text" placeholder="e.g. Kitchen Renovation, Electrical, Painting"/>
           </div>
 
           <div class="field">
             <label>Location</label>
-            <input v-model="newProject.location" type="text" />
+            <input v-model="newProject.location" type="text" placeholder="The general location of the renovation works" />
           </div>
 
           <div class="field">
