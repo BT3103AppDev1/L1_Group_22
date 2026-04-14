@@ -227,7 +227,7 @@ async function submitProposal() {
       status:        'pending',
       createdAt:     serverTimestamp(),
     })
-    alert('Proposal submitted successfully!')
+    alert('Proposal submitted successfully! Please wait for the Homeowner to contact you via the chat.')
     router.back()
   } catch (e) {
     console.error('Failed to submit proposal', e)
