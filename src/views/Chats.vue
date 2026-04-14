@@ -198,6 +198,10 @@
                   <span class="chip-title">{{ pendingFile.name }}</span>
                   <button class="chip-remove" @click="clearPendingFile">✕</button>
                 </div>
+
+                <div v-if="userType === 'homeowner' && messages.length != 0">
+                  <ReviewButton :contractorId="convoContractorId"/>
+                </div>
               </div>
 
               <!-- Text input row -->
@@ -290,6 +294,7 @@ import FileMessage from "@/components/FileMessage.vue"
 import defaultAvatar from "@/assets/default-avatar.png"
 import ProposalCard from "@/components/ProposalCard.vue"
 import ProposalMessage from "@/components/ProposalMessage.vue" 
+import ReviewButton from "@/components/ReviewButton.vue"
 
 const router = useRouter()
 const route = useRoute()

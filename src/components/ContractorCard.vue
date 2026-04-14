@@ -52,8 +52,6 @@
           Contact
         </button>
 
-        <ReviewButton :contractorId="contractor.id"/> <!-- remove and insert into chat function once ready -->
-
         <button class="profile-btn" type="button" @click="goToProfile">
           View Profile
         </button>
@@ -70,7 +68,6 @@ import starIcon from '@/assets/star-outline.svg'
 import locationIcon from '@/assets/location-outline.svg'
 import bagIcon from '@/assets/bag-outline.svg'
 import heartOutlineIcon from '@/assets/heart-outline.svg'
-import ReviewButton from '@/components/ReviewButton.vue'
 
 import { auth, db } from '@/firebase.js'
 import { doc, getDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
