@@ -199,9 +199,7 @@
                   <button class="chip-remove" @click="clearPendingFile">✕</button>
                 </div>
 
-                <div v-if="userType === 'homeowner' && messages.length != 0">
-                  <ReviewButton :contractorId="convoContractorId"/>
-                </div>
+          
               </div>
 
               <!-- Text input row -->
