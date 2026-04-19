@@ -147,6 +147,7 @@ function chooseContractor() {
 
 const handleSubmit = async () => {
   isLoading.value = true
+  errorMessage.value = '' 
 
   try {
     const userCredential = await signInWithEmailAndPassword(
@@ -182,6 +183,19 @@ const handleSubmit = async () => {
     
   } catch (error) {
     console.error(error)
+    const code = error.code
+    if (
+      code === 'auth/wrong-password' ||
+      code === 'auth/user-not-found' ||
+      code === 'auth/invalid-credential' ||
+      code === 'auth/invalid-email'
+    ) {
+      errorMessage.value = 'Incorrect email or password. Please try again.'
+    } else if (code === 'auth/too-many-requests') {
+      errorMessage.value = 'Too many failed attempts. Please try again later.'
+    } else {
+      errorMessage.value = 'Something went wrong. Please try again.'
+    }
   } finally {
     isLoading.value = false
   }

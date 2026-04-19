@@ -29,7 +29,7 @@
       <div class="contractor-meta">
         <span v-if="contractor.rating" class="meta-item">
           <img :src="starIcon" width="14" height="14" alt="rating" class="meta-icon star-icon" />
-          {{ contractor.rating }} ({{ contractor.reviewCount || 0 }})
+          {{ contractor.rating }} ({{ contractor.reviewCount || 0 }} Reviews)
         </span>
         <span v-if="contractor.location" class="meta-item">
           <img :src="locationIcon" width="14" height="14" alt="location" class="meta-icon" />
@@ -124,13 +124,7 @@ function goToProfile() {
   router.push(`/contractor/${props.contractor.id}`)
 }
 
-const priceTier = computed(() => {
-  const budget = props.contractor.budgetPerHour || props.contractor.hourlyRate || 0
-  if (budget < 50) return '$'
-  if (budget < 100) return '$$'
-  if (budget < 200) return '$$$'
-  return '$$$$'
-})
+const priceTier = computed(() => props.contractor.priceTier || '$')
 </script>
 
 <style scoped>

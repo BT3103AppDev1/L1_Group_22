@@ -50,12 +50,12 @@
         </label>
       </section>
 
-      <section class="filter-group">
+      <!-- <section class="filter-group">
         <label class="checkbox-item">
           <input v-model="verifiedOnly" type="checkbox" />
           <span>Verified Contractors Only</span>
         </label>
-      </section>
+      </section> -->
     </aside>
 
     <section class="contractors-section">
@@ -116,14 +116,14 @@ const contractors = ref([])
 const currentUid = auth.currentUser?.uid
 
 const categoryOptions = [
-  "General Contractor",
-  "Electrician",
+  "General Renovation",
+  "Electrical",
   "Plumber",
-  "Carpenter",
-  "Painter",
-  "Roofer",
-  "HVAC Technician",
-  "Mason",
+  "Carpentry",
+  "Painting",
+  "Roofing",
+  "HVAC",
+  "Stonemason",
 ]
 
 const budgetOptions = [
@@ -142,16 +142,27 @@ async function getContractors() {
   contractorError.value = ""
 
   try {
-    const q = query(
-      collection(db, "users"),
-      where("userType", "==", "contractor")
-    )
+    const q = query(collection(db, "users"), where("userType", "==", "contractor"))
     const snapshot = await getDocs(q)
 
-    contractors.value = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }))
+    // Fetch reviews for all contractors in parallel
+    const reviewsSnap = await getDocs(collection(db, "customerReviews"))
+    const reviewsByContractor = {}
+    reviewsSnap.docs.forEach(d => {
+      const { targetId, rating } = d.data()
+      if (!reviewsByContractor[targetId]) reviewsByContractor[targetId] = []
+      reviewsByContractor[targetId].push(rating)
+    })
+
+    contractors.value = snapshot.docs.map((doc) => {
+      const data = { id: doc.id, ...doc.data() }
+      const ratings = reviewsByContractor[doc.id] || []
+      data.rating = ratings.length
+        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
+        : null
+      data.reviewCount = ratings.length
+      return data
+    })
   } catch (err) {
     console.error(err)
     contractorError.value = "Could not load contractors"
@@ -177,14 +188,18 @@ const filteredContractors = computed(() => {
     const matchRating =
       minRating.value === 0 || (c.rating && c.rating >= minRating.value)
 
+    const budgetTierMap = {
+      "$ (Under $2,000)": "$",
+      "$$ ($2,000 - $5,000)": "$$",
+      "$$$ ($5,000 - $15,000)": "$$$",
+      "$$$$ ($15,000+)": "$$$$",
+    }
+
     const matchBudget =
       selectedBudgets.value.length === 0 ||
       selectedBudgets.value.some((selected) => {
-        const range = budgetOptions.find((b) => b.label === selected)
-        const value = c.budgetMin || c.budget || c.hourlyRate || 0
-        if (!range) return false
-        return value >= range.min && value < range.max
-      })
+        return c.priceTier === budgetTierMap[selected]
+    })
 
     const matchVerified = !verifiedOnly.value || c.verified === true
 

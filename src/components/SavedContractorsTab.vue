@@ -43,7 +43,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { auth, db } from '@/firebase.js'
-import { doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore'
+import { doc, getDoc, updateDoc, arrayRemove, getDocs, collection, query, where } from 'firebase/firestore'
 
 const router = useRouter()
 const savedContractors = ref([])
@@ -58,13 +58,30 @@ onMounted(async () => {
 
   const ids = userSnap.data().savedContractors || []
 
-  // Fetch each contractor's document in parallel
-  const fetches = ids.map(id => getDoc(doc(db, 'users', id)))
-  const snaps = await Promise.all(fetches)
+  // Fetch each contractor doc and all reviews in parallel
+  const [snaps, reviewsSnap] = await Promise.all([
+    Promise.all(ids.map(id => getDoc(doc(db, 'users', id)))),
+    getDocs(collection(db, 'customerReviews'))
+  ])
+
+  // Group reviews by contractorId
+  const reviewsByContractor = {}
+  reviewsSnap.docs.forEach(d => {
+    const { targetId, rating } = d.data()
+    if (!reviewsByContractor[targetId]) reviewsByContractor[targetId] = []
+    reviewsByContractor[targetId].push(rating)
+  })
 
   savedContractors.value = snaps
     .filter(s => s.exists())
-    .map(s => ({ id: s.id, ...s.data() }))
+    .map(s => {
+      const data = { id: s.id, ...s.data() }
+      const ratings = reviewsByContractor[s.id] || []
+      data.rating = ratings.length
+        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
+        : null
+      return data
+    })
 
   loading.value = false
 })

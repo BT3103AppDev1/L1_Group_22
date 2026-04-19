@@ -44,7 +44,12 @@ onMounted(async () => {
     const results = []
 
     for (const convoDoc of convoSnap.docs) {
-      const homeownerId = convoDoc.data().homeownerId
+      const convoData = convoDoc.data()
+      const homeownerId = convoData.homeownerId
+
+      // Skip if job has already been accepted or further along
+      const excludedStatuses = ["accepted", "completed", "confirmed", "reviewed"]
+      if (excludedStatuses.includes(convoData.jobSituation)) continue
 
       const msgSnap = await getDocs(
         collection(db, "conversations", convoDoc.id, "messages")

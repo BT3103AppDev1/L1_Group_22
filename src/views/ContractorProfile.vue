@@ -6,7 +6,10 @@
     <section class="profile-card">
       <template v-if="!editing">
         <div class="profile-top">
-          <div class="avatar">{{ contractor.initial }}</div>
+          <div class="avatar-wrap">
+            <img v-if="photoURL" :src="photoURL" class="avatar-photo" />
+            <div v-else class="avatar">{{ contractor.initial }}</div>
+          </div>
 
           <div class="profile-main">
             <div class="name-row">
@@ -74,7 +77,14 @@
 
       <template v-else>
         <div class="edit-layout">
-          <div class="avatar">{{ editForm.initial }}</div>
+          <div class="avatar-wrap">
+            <img v-if="photoURL" :src="photoURL" class="avatar-photo" />
+            <div v-else class="avatar">{{ editForm.initial }}</div>
+            <button class="photo-upload-btn" @click="photoInput.click()" :disabled="photoUploading">
+              {{ photoUploading ? '…' : '📷' }}
+            </button>
+            <input ref="photoInput" type="file" accept="image/*" style="display:none" @change="handlePhotoUpload" />
+          </div>
 
           <div class="edit-main">
             <div class="form-grid">
@@ -107,6 +117,16 @@
                 <label>Years of Experience</label>
                 <input v-model="editForm.yearsExperience" type="number" />
               </div>
+            </div>
+            <div class="field">
+              <label>Price Tier</label>
+              <select v-model="editForm.priceTier">
+                <option value="">Select tier</option>
+                <option value="$">$ (Under $2,000)</option>
+                <option value="$$">$$ ($2,000 - $5,000)</option>
+                <option value="$$$">$$$ ($5,000 - $15,000)</option>
+                <option value="$$$$">$$$$ ($15,000+)</option>
+              </select>
             </div>
 
             <div class="skill-editor">
@@ -192,7 +212,7 @@
 
       <div class="tab-content">
         <div v-if="activeTab === 'portfolio'">
-          <PortfolioTab :contractorId="profileUid"/>
+          <PortfolioTab :contractorId="profileUid" @project-added="loadProjectStats"/>
         </div>
 
         <div v-if="activeTab === 'opportunities' && isOwner">
@@ -212,6 +232,7 @@ import { onMounted, reactive, ref, computed } from "vue"
 import { useRoute } from "vue-router"
 import { auth, db } from "@/firebase.js"
 import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
 
 import ToolBarContractor from "@/components/ToolBarContractor.vue"
 import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
@@ -246,6 +267,9 @@ const isOwner = computed(() =>
 const activeTab = ref("portfolio")
 const editing = ref(false)
 const newSkill = ref("")
+const photoURL = ref("")
+const photoUploading = ref(false)
+const photoInput = ref(null)
 
 const projectStats = reactive({
   total: 0,
@@ -266,6 +290,7 @@ const contractor = reactive({
   location: "",
   yearsExperience: 0,
   skills: [],
+  priceTier: '',
 })
 
 const editForm = reactive({
@@ -277,6 +302,7 @@ const editForm = reactive({
   location: "",
   yearsExperience: 0,
   skills: [],
+  priceTier: '',
 })
 
 const customSkills = computed(() =>
@@ -326,6 +352,7 @@ function syncEditForm() {
   editForm.location = contractor.location
   editForm.yearsExperience = contractor.yearsExperience
   editForm.skills = [...contractor.skills]
+  editForm.priceTier = contractor.priceTier
 }
 
 async function loadContractorProfile() {
@@ -347,6 +374,8 @@ async function loadContractorProfile() {
     contractor.initial = contractor.fullName
       ? contractor.fullName.charAt(0).toUpperCase()
       : "?"
+    photoURL.value = data.photoURL || ""
+    contractor.priceTier = data.priceTier || ''
 
     syncEditForm()
   } catch (error) {
@@ -410,6 +439,7 @@ async function saveProfile() {
         location: editForm.location,
         yearsExperience: Number(editForm.yearsExperience),
         skills: [...editForm.skills],
+        priceTier: editForm.priceTier,
       },
       { merge: true }
     )
@@ -435,6 +465,24 @@ function cancelEdit() {
   syncEditForm()
   newSkill.value = ""
   editing.value = false
+}
+
+async function handlePhotoUpload(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  photoUploading.value = true
+  const storage = getStorage()
+  const sRef = storageRef(storage, `profilePhotos/${auth.currentUser.uid}`)
+  const task = uploadBytesResumable(sRef, file)
+  task.on("state_changed", null, (err) => {
+    console.error(err)
+    photoUploading.value = false
+  }, async () => {
+    const url = await getDownloadURL(task.snapshot.ref)
+    photoURL.value = url
+    await setDoc(doc(db, "users", auth.currentUser.uid), { photoURL: url }, { merge: true })
+    photoUploading.value = false
+  })
 }
 
 onMounted(() => {
@@ -820,4 +868,46 @@ onMounted(() => {
   .stat-portfolio { color: #16a34a; }
   .stat-progress  { color: #ea580c; }
   .stat-completed { color: #111827; }
+  .avatar-wrap {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+
+  .avatar-photo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  }
+
+  .photo-upload-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: #2254f5;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .field select {
+    width: 100%;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+  }
 </style>

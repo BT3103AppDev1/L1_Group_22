@@ -186,6 +186,7 @@ const { homeownerId } = defineProps({
     required: true
   }
 })
+const emit = defineEmits(['project-added'])
 
 const isOwner = () => {
   return !homeownerId  || homeownerId  === auth.currentUser?.uid
@@ -377,6 +378,7 @@ async function saveNewProject() {
       status: 'active',   // ← add this
       createdAt: serverTimestamp(),
     })
+    emit('project-added')
 
     closeForm()
     await loadPortfolioProjects()

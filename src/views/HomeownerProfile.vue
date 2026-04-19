@@ -4,7 +4,10 @@
       <section class="profile-card">
         <template v-if="!editing">
           <div class="profile-top">
-            <div class="avatar">{{ homeowner.initial }}</div>
+            <div class="avatar-wrap">
+              <img v-if="photoURL" :src="photoURL" class="avatar-photo" />
+              <div v-else class="avatar">{{ homeowner.initial }}</div>
+            </div>
 
             <div class="profile-main">
               <div class="name-row">
@@ -67,7 +70,14 @@
 
         <template v-else>
           <div class="edit-layout">
-            <div class="avatar">{{ editForm.initial }}</div>
+            <div class="avatar-wrap">
+              <img v-if="photoURL" :src="photoURL" class="avatar-photo" />
+              <div v-else class="avatar">{{ editForm.initial }}</div>
+              <button class="photo-upload-btn" @click="photoInput.click()" :disabled="photoUploading">
+                {{ photoUploading ? '…' : '📷' }}
+              </button>
+              <input ref="photoInput" type="file" accept="image/*" style="display:none" @change="handlePhotoUpload" />
+            </div>
 
             <div class="edit-main">
               <div class="form-grid">
@@ -163,7 +173,7 @@
 
         <div class="tab-content">
           <div v-if="activeTab === 'portfolio'">
-            <ProjectsTab :homeownerId="profileUid"/>            
+            <ProjectsTab :homeownerId="profileUid" @project-added="loadProjectStats"/>            
           </div>
 
           <div v-if="activeTab === 'opportunities' && isOwner">
@@ -183,6 +193,7 @@
   import { useRoute } from "vue-router"
   import { auth, db } from "@/firebase.js"
   import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
+  import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
 
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   
@@ -206,6 +217,9 @@ const isOwner = computed(() =>
   const activeTab = ref("portfolio")
   const editing = ref(false)
   const newSkill = ref("")
+  const photoURL = ref("")
+  const photoUploading = ref(false)
+  const photoInput = ref(null)
   
   const homeowner = reactive({
     initial: "D",
@@ -294,6 +308,7 @@ async function loadHomeownerProfile() {
     homeowner.initial = homeowner.fullName
       ? homeowner.fullName.charAt(0).toUpperCase()
       : "X"
+    photoURL.value = data.photoURL || ""
 
     syncEditForm()
   } catch (error) {
@@ -395,6 +410,26 @@ async function loadHomeownerProfile() {
       console.error('Failed to load project stats', e)
     }
   }
+
+  // Upload Profile Photo
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    photoUploading.value = true
+    const storage = getStorage()
+    const sRef = storageRef(storage, `profilePhotos/${auth.currentUser.uid}`)
+    const task = uploadBytesResumable(sRef, file)
+    task.on("state_changed", null, (err) => {
+      console.error(err)
+      photoUploading.value = false
+    }, async () => {
+      const url = await getDownloadURL(task.snapshot.ref)
+      photoURL.value = url
+      await setDoc(doc(db, "users", auth.currentUser.uid), { photoURL: url }, { merge: true })
+      photoUploading.value = false
+    })
+  }
+
   onMounted(() => {
     loadHomeownerProfile()
     loadProjectStats()
@@ -1025,5 +1060,37 @@ async function loadHomeownerProfile() {
   .stat-active    { color: #16a34a; }
   .stat-progress  { color: #ea580c; }
   .stat-completed { color: #111827; }
+
+  .avatar-wrap {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+
+  .avatar-photo {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  }
+
+  .photo-upload-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: #2254f5;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
   </style>

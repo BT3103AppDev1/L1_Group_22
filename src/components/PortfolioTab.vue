@@ -165,6 +165,7 @@ const { contractorId } = defineProps({
     required: true
   }
 })
+const emit = defineEmits(['project-added'])
 
 const isOwner = () => {
   return !contractorId || contractorId === auth.currentUser?.uid
@@ -381,6 +382,7 @@ async function saveNewProject() {
       // --- ADD path ---
       await addDoc(collection(db, "portfolioProjects"), {
         contractorId: user.uid,
+        status: 'portfolio',
         title: newProject.title.trim(),
         description: newProject.description.trim(),
         category: newProject.category.trim(),
@@ -391,6 +393,7 @@ async function saveNewProject() {
         imageUrls,
         createdAt: serverTimestamp(),
       })
+      emit('project-added')
     }
 
     closeForm()

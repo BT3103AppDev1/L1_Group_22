@@ -18,13 +18,13 @@
             <button class="reset-btn" type="button" @click="resetFilters">Reset</button>
           </div>
   
-          <section class="filter-group">
+          <!-- <section class="filter-group">
             <h3>Status</h3>
             <label v-for="status in statusOptions" :key="status" class="checkbox-item">
               <input v-model="selectedStatuses" type="checkbox" :value="status" />
               <span>{{ status }}</span>
             </label>
-          </section>
+          </section> -->
   
           <section class="filter-group">
             <h3>Category</h3>
@@ -42,13 +42,13 @@
             </label>
           </section>
   
-          <section class="filter-group">
+          <!-- <section class="filter-group">
             <h3>Urgency</h3>
             <label v-for="urgency in urgencyOptions" :key="urgency" class="checkbox-item">
               <input v-model="selectedUrgencies" type="checkbox" :value="urgency" />
               <span>{{ urgency }}</span>
             </label>
-          </section>
+          </section> -->
         </aside>
   
         <section class="jobs-section">
@@ -104,7 +104,7 @@
   const selectedBudgets = ref([])
   const selectedUrgencies = ref([])
   
-  const statusOptions = ["New", "Invited", "Proposal Sent"]
+  // const statusOptions = ["New", "Invited", "Proposal Sent"]
   
   const categoryOptions = [
     "Kitchen Renovation",
@@ -194,14 +194,18 @@
         selectedUrgencies.value.length === 0 ||
         selectedUrgencies.value.includes(job.urgency)
   
+      const budgetTierMap = {
+        "$ (Under $2,000)": ["$"],
+        "$$ ($2,000 - $5,000)": ["$$"],
+        "$$$ ($5,000 - $15,000)": ["$$$"],
+        "$$$$ ($15,000+)": ["$$$$"],
+      }
+
       const matchBudget =
         selectedBudgets.value.length === 0 ||
         selectedBudgets.value.some((selected) => {
-          const range = budgetOptions.find((b) => b.label === selected)
-          const value = job.budgetMin || job.budget || 0
-  
-          if (!range) return false
-          return value >= range.min && value < range.max
+          const tiers = budgetTierMap[selected]
+          return tiers && tiers.includes(job.priceTier)
         })
   
       return (
@@ -258,12 +262,13 @@
     return value
   }
   
-  function statusClass(status) {
-    if (status === "New") return "new"
-    if (status === "Invited") return "invited"
-    if (status === "Proposal Sent") return "proposal"
-    return ""
-  }
+
+  // function statusClass(status) {
+  //   if (status === "New") return "new"
+  //   if (status === "Invited") return "invited"
+  //   if (status === "Proposal Sent") return "proposal"
+  //   return ""
+  // }
   
   function urgencyClass(urgency) {
     if (urgency === "Urgent") return "urgent"
