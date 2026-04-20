@@ -107,7 +107,7 @@
       </div>
     </div>
   </div>
-
+  <!-- Portfolio summary -->
   <div v-if="loading" class="status-text">Loading projects...</div>
   <div v-else-if="errorMessage" class="status-text error-text">{{ errorMessage }}</div>
   <div v-else-if="portfolioProjects.length === 0" class="status-text">
@@ -143,533 +143,517 @@
 </template>
 
 <script setup>
-import { onMounted, ref, reactive } from "vue"
-import { auth, db, storage } from "@/firebase.js"
-import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"
-import {
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-} from "firebase/firestore"
+  import { onMounted, ref, reactive } from "vue"
+  import { auth, db, storage } from "@/firebase.js"
+  import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage"
+  import {
+    collection,
+    query,
+    where,
+    getDocs,
+    orderBy,
+    addDoc,
+    updateDoc,
+    serverTimestamp,
+    doc,
+    getDoc,
+  } from "firebase/firestore"
+  import { onAuthStateChanged } from "firebase/auth"
 
-const { contractorId } = defineProps({
-  contractorId: {
-    type: String,
-    required: true
+  const { contractorId } = defineProps({
+    contractorId: {
+      type: String,
+      required: true
+    }
+  })
+  const emit = defineEmits(['project-added'])
+
+  const isOwner = () => {
+    return !contractorId || contractorId === auth.currentUser?.uid
   }
-})
-const emit = defineEmits(['project-added'])
 
-const isOwner = () => {
-  return !contractorId || contractorId === auth.currentUser?.uid
-}
+  const portfolioProjects = ref([])
+  const loading = ref(true)
+  const uploading = ref(false)
+  const errorMessage = ref("")
+  const showAddForm = ref(false)
+  const editingProject = ref(null)
 
-const portfolioProjects = ref([])
-const loading = ref(true)
-const uploading = ref(false)
-const errorMessage = ref("")
-const showAddForm = ref(false)
-const editingProject = ref(null)
+  const fallbackImage =
+    "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
 
-const fallbackImage =
-  "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"
+  const newProject = reactive({
+    title: "",
+    description: "",
+    category: "",
+    location: "",
+    dateLabel: "",
+    priceTier: "",
+  })
 
-const newProject = reactive({
-  title: "",
-  description: "",
-  category: "",
-  location: "",
-  dateLabel: "",
-  priceTier: "",
-})
+  // Image upload state — 4 slots
+  const uploadedImages = ref([null, null, null, null])
+  const fileInputs = ref([])
 
-// Image upload state — 4 slots
-const uploadedImages = ref([null, null, null, null])
-const fileInputs = ref([])
-
-function triggerFileInput(index) {
-  fileInputs.value[index]?.click()
-}
-
-function onFileSelected(event, index) {
-  const file = event.target.files[0]
-  if (!file) return
-
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    uploadedImages.value[index] = {
-      file,
-      preview: e.target.result,
-    }
+  function triggerFileInput(index) {
+    fileInputs.value[index]?.click()
   }
-  reader.readAsDataURL(file)
 
-  // Reset input so the same file can be re-selected if removed
-  event.target.value = ""
-}
+  function onFileSelected(event, index) {
+    const file = event.target.files[0]
+    if (!file) return
 
-function removeImage(index) {
-  uploadedImages.value[index] = null
-}
-
-function resetForm() {
-  newProject.title = ""
-  newProject.description = ""
-  newProject.category = ""
-  newProject.location = ""
-  newProject.dateLabel = ""
-  newProject.priceTier = ""
-  uploadedImages.value = [null, null, null, null]
-  editingProject.value = null
-}
-
-function closeForm() {
-  resetForm()
-  showAddForm.value = false
-}
-
-function openEditForm(project) {
-  editingProject.value = project
-  newProject.title = project.title || ""
-  newProject.description = project.description || ""
-  newProject.category = project.category || ""
-  newProject.location = project.location || ""
-  newProject.dateLabel = project.dateLabel || ""
-  newProject.priceTier = project.priceTier || ""
-
-  // Pre-populate image slots with existing URLs as preview-only entries
-  const existingUrls = project.imageUrls?.length
-    ? project.imageUrls
-    : project.imageUrl
-      ? [project.imageUrl]
-      : []
-
-  uploadedImages.value = [null, null, null, null].map((_, i) =>
-    existingUrls[i] ? { preview: existingUrls[i], file: null } : null
-  )
-
-  showAddForm.value = true
-}
-
-async function loadPortfolioProjects() {
-  try {
-    loading.value = true
-    errorMessage.value = ""
-
-    const user = auth.currentUser
-    if (!user) {
-      errorMessage.value = "No logged-in user found."
-      return
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      uploadedImages.value[index] = {
+        file,
+        preview: e.target.result,
+      }
     }
+    reader.readAsDataURL(file)
 
-    const userRef = doc(db, "users", user.uid)
-    const userSnap = await getDoc(userRef)
+    // Reset input so the same file can be re-selected if removed
+    event.target.value = ""
+  }
 
-    if (!userSnap.exists()) {
-      errorMessage.value = "User profile not found."
-      return
-    }
+  function removeImage(index) {
+    uploadedImages.value[index] = null
+  }
 
-    const userData = userSnap.data()
+  function resetForm() {
+    newProject.title = ""
+    newProject.description = ""
+    newProject.category = ""
+    newProject.location = ""
+    newProject.dateLabel = ""
+    newProject.priceTier = ""
+    uploadedImages.value = [null, null, null, null]
+    editingProject.value = null
+  }
 
-    // if (userData.userType !== "contractor") {
-    //   errorMessage.value = "Only contractor accounts can view portfolio projects."
-    //   return
-    // }
+  function closeForm() {
+    resetForm()
+    showAddForm.value = false
+  }
 
-    const q = query(
-      collection(db, "portfolioProjects"),
-      where("contractorId", "==", contractorId),
-      orderBy("createdAt", "desc")
+  function openEditForm(project) {
+    editingProject.value = project
+    newProject.title = project.title || ""
+    newProject.description = project.description || ""
+    newProject.category = project.category || ""
+    newProject.location = project.location || ""
+    newProject.dateLabel = project.dateLabel || ""
+    newProject.priceTier = project.priceTier || ""
+
+    // Pre-populate image slots with existing URLs as preview-only entries
+    const existingUrls = project.imageUrls?.length
+      ? project.imageUrls
+      : project.imageUrl
+        ? [project.imageUrl]
+        : []
+
+    uploadedImages.value = [null, null, null, null].map((_, i) =>
+      existingUrls[i] ? { preview: existingUrls[i], file: null } : null
     )
 
-    const snapshot = await getDocs(q)
-
-    portfolioProjects.value = snapshot.docs.map((projectDoc) => ({
-      id: projectDoc.id,
-      ...projectDoc.data(),
-    }))
-  } catch (error) {
-    console.error("Error loading portfolio projects:", error)
-    errorMessage.value = "Failed to load portfolio projects."
-  } finally {
-    loading.value = false
+    showAddForm.value = true
   }
-}
 
-async function saveNewProject() {
-  try {
-    errorMessage.value = ""
+  async function loadPortfolioProjects() {
+    try {
+      loading.value = true
+      errorMessage.value = ""
 
-    const user = auth.currentUser
-    if (!user) {
-      alert("No logged-in user found.")
-      return
+      const q = query(
+        collection(db, "portfolioProjects"),
+        where("contractorId", "==", contractorId),
+        orderBy("createdAt", "desc")
+      )
+
+      const snapshot = await getDocs(q)
+
+      portfolioProjects.value = snapshot.docs.map((projectDoc) => ({
+        id: projectDoc.id,
+        ...projectDoc.data(),
+      }))
+    } catch (error) {
+      console.error("Error loading portfolio projects:", error)
+      errorMessage.value = "Failed to load portfolio projects."
+    } finally {
+      loading.value = false
     }
+  }
 
-    const userRef = doc(db, "users", user.uid)
-    const userSnap = await getDoc(userRef)
+  async function saveNewProject() {
+    try {
+      errorMessage.value = ""
 
-    if (!userSnap.exists()) {
-      alert("User profile not found.")
-      return
-    }
+      const user = auth.currentUser
+      if (!user) {
+        alert("No logged-in user found.")
+        return
+      }
 
-    const userData = userSnap.data()
+      const userRef = doc(db, "users", user.uid)
+      const userSnap = await getDoc(userRef)
 
-    if (userData.userType !== "contractor") {
-      alert("Only contractors can add portfolio projects.")
-      return
-    }
+      if (!userSnap.exists()) {
+        alert("User profile not found.")
+        return
+      }
 
-    if (
-      !newProject.title.trim() ||
-      !newProject.description.trim() ||
-      !newProject.category.trim() ||
-      !newProject.location.trim() ||
-      !newProject.dateLabel.trim() ||
-      !newProject.priceTier.trim()
-    ) {
-      alert("Please fill in all required fields.")
-      return
-    }
+      const userData = userSnap.data()
 
-    // Separate new file uploads from existing URL-only slots
-    const newFileSlots = uploadedImages.value.filter((img) => img?.file)
-    const existingUrlSlots = uploadedImages.value.filter((img) => img && !img.file)
+      if (userData.userType !== "contractor") {
+        alert("Only contractors can add portfolio projects.")
+        return
+      }
 
-    let newImageUrls = []
+      if (
+        !newProject.title.trim() ||
+        !newProject.description.trim() ||
+        !newProject.category.trim() ||
+        !newProject.location.trim() ||
+        !newProject.dateLabel.trim() ||
+        !newProject.priceTier.trim()
+      ) {
+        alert("Please fill in all required fields.")
+        return
+      }
 
-    if (newFileSlots.length > 0) {
-      uploading.value = true
-      const uploadPromises = newFileSlots.map((img) => {
-        const filename = `${Date.now()}_${img.file.name}`
-        const fileRef = storageRef(storage, `portfolioImages/${user.uid}/${filename}`)
-        return uploadBytes(fileRef, img.file).then((snapshot) =>
-          getDownloadURL(snapshot.ref)
-        )
-      })
-      newImageUrls = await Promise.all(uploadPromises)
+      // Separate new file uploads from existing URL-only slots
+      const newFileSlots = uploadedImages.value.filter((img) => img?.file)
+      const existingUrlSlots = uploadedImages.value.filter((img) => img && !img.file)
+
+      let newImageUrls = []
+
+      if (newFileSlots.length > 0) {
+        uploading.value = true
+        const uploadPromises = newFileSlots.map((img) => {
+          const filename = `${Date.now()}_${img.file.name}`
+          const fileRef = storageRef(storage, `portfolioImages/${user.uid}/${filename}`)
+          return uploadBytes(fileRef, img.file).then((snapshot) =>
+            getDownloadURL(snapshot.ref)
+          )
+        })
+        newImageUrls = await Promise.all(uploadPromises)
+        uploading.value = false
+      }
+
+      // Preserve existing image URLs + append newly uploaded ones
+      const preservedUrls = existingUrlSlots.map((img) => img.preview)
+      const imageUrls = [...preservedUrls, ...newImageUrls]
+      const imageUrl = imageUrls[0] || fallbackImage
+
+      if (editingProject.value) {
+        // --- EDIT path ---
+        const projectRef = doc(db, "portfolioProjects", editingProject.value.id)
+        await updateDoc(projectRef, {
+          title: newProject.title.trim(),
+          description: newProject.description.trim(),
+          category: newProject.category.trim(),
+          location: newProject.location.trim(),
+          dateLabel: newProject.dateLabel.trim(),
+          priceTier: newProject.priceTier.trim(),
+          imageUrl,
+          imageUrls,
+        })
+      } else {
+        // --- ADD path ---
+        await addDoc(collection(db, "portfolioProjects"), {
+          contractorId: user.uid,
+          status: 'portfolio',
+          title: newProject.title.trim(),
+          description: newProject.description.trim(),
+          category: newProject.category.trim(),
+          location: newProject.location.trim(),
+          dateLabel: newProject.dateLabel.trim(),
+          priceTier: newProject.priceTier.trim(),
+          imageUrl,
+          imageUrls,
+          createdAt: serverTimestamp(),
+        })
+        emit('project-added')
+      }
+
+      closeForm()
+      await loadPortfolioProjects()
+    } catch (error) {
       uploading.value = false
+      console.error("Error saving project:", error)
+      errorMessage.value = "Failed to save project."
     }
-
-    // Preserve existing image URLs + append newly uploaded ones
-    const preservedUrls = existingUrlSlots.map((img) => img.preview)
-    const imageUrls = [...preservedUrls, ...newImageUrls]
-    const imageUrl = imageUrls[0] || fallbackImage
-
-    if (editingProject.value) {
-      // --- EDIT path ---
-      const projectRef = doc(db, "portfolioProjects", editingProject.value.id)
-      await updateDoc(projectRef, {
-        title: newProject.title.trim(),
-        description: newProject.description.trim(),
-        category: newProject.category.trim(),
-        location: newProject.location.trim(),
-        dateLabel: newProject.dateLabel.trim(),
-        priceTier: newProject.priceTier.trim(),
-        imageUrl,
-        imageUrls,
-      })
-    } else {
-      // --- ADD path ---
-      await addDoc(collection(db, "portfolioProjects"), {
-        contractorId: user.uid,
-        status: 'portfolio',
-        title: newProject.title.trim(),
-        description: newProject.description.trim(),
-        category: newProject.category.trim(),
-        location: newProject.location.trim(),
-        dateLabel: newProject.dateLabel.trim(),
-        priceTier: newProject.priceTier.trim(),
-        imageUrl,
-        imageUrls,
-        createdAt: serverTimestamp(),
-      })
-      emit('project-added')
-    }
-
-    closeForm()
-    await loadPortfolioProjects()
-  } catch (error) {
-    uploading.value = false
-    console.error("Error saving project:", error)
-    errorMessage.value = "Failed to save project."
   }
-}
 
-onMounted(() => {
-  loadPortfolioProjects()
-})
+  onMounted(() => {
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loadPortfolioProjects()
+      }
+    })
+  })
 </script>
 
 <style scoped>
-.portfolio-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-}
+  .portfolio-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+  }
 
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 22px;
-}
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+  }
 
-.section-header h2 {
-  margin: 0 0 10px;
-  font-size: 20px;
-}
+  .section-header h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+  }
 
-.primary-btn {
-  border: none;
-  background: #2958ec;
-  color: white;
-  border-radius: 10px;
-  padding: 11px 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
+  .primary-btn {
+    border: none;
+    background: #2958ec;
+    color: white;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-.save-project-btn {
-  width: 100%;
-  border: none;
-  background: #2958ec;
-  color: white;
-  border-radius: 10px;
-  padding: 11px 16px;
-  font-weight: 600;
-  cursor: pointer;
-}
+  .save-project-btn {
+    width: 100%;
+    border: none;
+    background: #2958ec;
+    color: white;
+    border-radius: 10px;
+    padding: 11px 16px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-.project-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  overflow: hidden;
-  background: white;
-}
+  .project-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    overflow: hidden;
+    background: white;
+  }
 
-.project-image {
-  width: 100%;
-  height: 210px;
-  object-fit: cover;
-  display: block;
-}
+  .project-image {
+    width: 100%;
+    height: 210px;
+    object-fit: cover;
+    display: block;
+  }
 
-.project-body {
-  padding: 16px;
-}
+  .project-body {
+    padding: 16px;
+  }
 
-.project-title-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: start;
-}
+  .project-title-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: start;
+  }
 
-.project-title-row h3 {
-  margin: 0;
-  font-size: 18px;
-}
+  .project-title-row h3 {
+    margin: 0;
+    font-size: 18px;
+  }
 
-.price-mark {
-  color: #ff5b1f;
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1;
-}
+  .price-mark {
+    color: #ff5b1f;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
 
-.project-desc {
-  color: #6b7280;
-  font-size: 14px;
-  line-height: 1.5;
-  margin: 10px 0 12px;
-}
+  .project-desc {
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 10px 0 12px;
+  }
 
-.project-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
+  .project-tags {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
 
-.small-tag {
-  background: #f3f4f6;
-  color: #4b5563;
-  padding: 5px 8px;
-  border-radius: 8px;
-  font-size: 12px;
-}
+  .small-tag {
+    background: #f3f4f6;
+    color: #4b5563;
+    padding: 5px 8px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
 
-.full-outline-btn {
-  width: 100%;
-  border: 1px solid #2958ec;
-  color: white;
-  background: #2958ec;
-  border-radius: 10px;
-  padding: 11px 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
+  .full-outline-btn {
+    width: 100%;
+    border: 1px solid #2958ec;
+    color: white;
+    background: #2958ec;
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-.status-text {
-  padding: 18px 0;
-  color: #6b7280;
-  font-size: 14px;
-}
+  .status-text {
+    padding: 18px 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
 
-.error-text {
-  color: #dc2626;
-}
+  .error-text {
+    color: #dc2626;
+  }
 
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.35);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
 
-.modal-card {
-  width: min(680px, 92vw);
-  background: white;
-  border-radius: 16px;
-  padding: 22px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
-  max-height: 90vh;
-  overflow-y: auto;
-}
+  .modal-card {
+    width: min(680px, 92vw);
+    background: white;
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 18px;
-}
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+  }
 
-.modal-header h3 {
-  margin: 0;
-}
+  .modal-header h3 {
+    margin: 0;
+  }
 
-.close-btn {
-  border: none;
-  background: transparent;
-  font-size: 26px;
-  cursor: pointer;
-}
+  .close-btn {
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    cursor: pointer;
+  }
 
-.form-grid {
-  display: grid;
-  gap: 14px;
-}
+  .form-grid {
+    display: grid;
+    gap: 14px;
+  }
 
-.field {
-  display: grid;
-  gap: 6px;
-}
+  .field {
+    display: grid;
+    gap: 6px;
+  }
 
-.field label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #374151;
-}
+  .field label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+  }
 
-.field input,
-.field textarea,
-.field select {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
+  .field input,
+  .field textarea,
+  .field select {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
 
-/* ── Image upload grid ── */
-.image-upload-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
+  /* Image upload grid */
+  .image-upload-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
 
-.upload-slot {
-  position: relative;
-  aspect-ratio: 1 / 1;
-  border: 2px dashed #d1d5db;
-  border-radius: 12px;
-  cursor: pointer;
-  overflow: hidden;
-  background: #f9fafb;
-  transition: border-color 0.15s, background 0.15s;
-}
+  .upload-slot {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    cursor: pointer;
+    overflow: hidden;
+    background: #f9fafb;
+    transition: border-color 0.15s, background 0.15s;
+  }
 
-.upload-slot:hover {
-  border-color: #2958ec;
-  background: #eff4ff;
-}
+  .upload-slot:hover {
+    border-color: #2958ec;
+    background: #eff4ff;
+  }
 
-.upload-slot.has-image {
-  border-style: solid;
-  border-color: #e5e7eb;
-}
+  .upload-slot.has-image {
+    border-style: solid;
+    border-color: #e5e7eb;
+  }
 
-.slot-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
+  .slot-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
 
-.remove-btn {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: none;
-  background: #ef4444;
-  color: white;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
+  .remove-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: #ef4444;
+    color: white;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
 
-.upload-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: #9ca3af;
-  font-size: 13px;
-  user-select: none;
-}
+  .upload-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: #9ca3af;
+    font-size: 13px;
+    user-select: none;
+  }
 
-.hidden-input {
-  display: none;
-}
+  .hidden-input {
+    display: none;
+  }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 18px;
-}
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+  }
 </style>

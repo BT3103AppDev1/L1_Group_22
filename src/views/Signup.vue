@@ -1,5 +1,6 @@
 <template>
   <div class="container">
+    <!-- Header + Slogan -->
     <div class="login-header">
       <div class="header">
         <img id="logo" src="../assets/reliabuild_logo2.png" alt="Reliabuild Logo" />
@@ -10,7 +11,7 @@
 
     <div class="login-form">
       <h2 id="title">Sign Up</h2>
-
+      <!-- Choose user type -->
       <label id="user-type-label">I am a</label>
       <div class="toggle-container">
         <button
@@ -30,7 +31,7 @@
           Contractor
         </button>
       </div>
-
+      <!-- Sign Up form -->
       <form @submit.prevent="handleSignup" class="form">
         <div class="form-group">
           <label for="fullName" class="form-label">Full Name</label>
@@ -111,11 +112,11 @@
             </button>
           </div>
         </div>
-
+        <!-- Error Message -->
         <div v-if="errorMessage" class="error-message">
           {{ errorMessage }}
         </div>
-
+        <!-- Submit button -->
         <button
           type="submit"
           :disabled="isLoading"
@@ -123,6 +124,7 @@
         >
           {{ isLoading ? "Creating account..." : "Sign Up" }}
         </button>
+        <!-- Sign up with google -->
         <button 
           type="button"
           @click="signUpWithGoogle"
@@ -133,7 +135,7 @@
           Sign Up with Google
         </button>
       </form>
-
+      <!-- Navigate to Log In -->
       <div class="signup-section">
         Already have an account?
         <button @click="navigate('/')" class="signup-link">
@@ -141,7 +143,7 @@
         </button>
       </div>
     </div>
-
+    <!-- Footer -->
     <div class="footer">
       By signing up, you agree to our
       <button class="policy-link">Terms of Service</button> and
@@ -151,398 +153,394 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { Eye, EyeOff } from 'lucide-vue-next'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth, googleProvider } from '@/firebase'  // adjust path if needed
-import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
-import { signInWithPopup } from 'firebase/auth'
+  import { ref } from 'vue'
+  import { useRouter } from 'vue-router'
+  import { Eye, EyeOff } from 'lucide-vue-next'
+  import { createUserWithEmailAndPassword } from 'firebase/auth'
+  import { auth, googleProvider } from '@/firebase'  // adjust path if needed
+  import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore'
+  import { signInWithPopup } from 'firebase/auth'
 
-const router = useRouter()
-const db = getFirestore()
+  const router = useRouter()
+  const db = getFirestore()
 
-const fullName = ref('')
-const username = ref('')
-const email = ref('')
-const password = ref('')
-const confirmPassword = ref('')
-const showPassword = ref(false)
-const showConfirmPassword = ref(false)
-const isLoading = ref(false)
-const errorMessage = ref('')
-const userType = ref('homeowner')
+  const fullName = ref('')
+  const username = ref('')
+  const email = ref('')
+  const password = ref('')
+  const confirmPassword = ref('')
+  const showPassword = ref(false)
+  const showConfirmPassword = ref(false)
+  const isLoading = ref(false)
+  const errorMessage = ref('')
+  const userType = ref('homeowner')
 
-function chooseHomeowner() {
-  userType.value = 'homeowner'
-}
-
-function chooseContractor() {
-  userType.value = 'contractor'
-}
-
-const handleSignup = async () => {
-  errorMessage.value = ''
-
-  // Basic client-side validation
-  if (password.value !== confirmPassword.value) {
-    errorMessage.value = 'Passwords do not match'
-    return
+  // Select user type
+  function chooseHomeowner() {
+    userType.value = 'homeowner'
   }
 
-  if (password.value.length < 6) {
-    errorMessage.value = 'Password must be at least 6 characters'
-    return
+  function chooseContractor() {
+    userType.value = 'contractor'
   }
 
-  isLoading.value = true
+  const handleSignup = async () => {
+    errorMessage.value = ''
 
-  try {
-    const userCredential = await createUserWithEmailAndPassword(
-      auth,
-      email.value.trim(),
-      password.value
-    )
-
-    const user = userCredential.user
-    //console.log('User created:', user.uid)
-
-    // → Here you would normally:
-    // 1. Save additional data to Firestore (fullName, username, userType)
-    // 2. Set custom claims (if using role enforcement)
-    // For now we just redirect
-
-    // inside try block, after createUserWithEmailAndPassword
-    await setDoc(doc(db, 'users', user.uid), {
-        fullName: fullName.value.trim(),
-        username: username.value.trim(),
-        userType: userType.value,
-        email: email.value.trim(),
-        createdAt: new Date()
-    })
-
-    router.push('/')
-
-  } catch (error) {
-    switch (error.code) {
-      case 'auth/email-already-in-use':
-        errorMessage.value = 'This email is already registered'
-        break
-      case 'auth/invalid-email':
-        errorMessage.value = 'Invalid email format'
-        break
-      case 'auth/weak-password':
-        errorMessage.value = 'Password is too weak (min 6 characters)'
-        break
-      default:
-        errorMessage.value = 'Sign up failed. Please try again.'
-        console.error(error)
+    if (password.value !== confirmPassword.value) {
+      errorMessage.value = 'Passwords do not match'
+      return
     }
-  } finally {
-    isLoading.value = false
-  }
-}
 
-const navigate = (path) => {
-  router.push(path)
-}
+    if (password.value.length < 6) {
+      errorMessage.value = 'Password must be at least 6 characters'
+      return
+    }
 
-const signUpWithGoogle = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
+    isLoading.value = true
 
-  try {
-    const result = await signInWithPopup(auth, googleProvider)
-    const user = result.user
+    try {
+      // Firebase Sign Up
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email.value.trim(),
+        password.value
+      )
 
-    const userDocRef = doc(db, 'users', user.uid)
-    const exists = (await getDoc(userDocRef)).exists()
+      const user = userCredential.user
 
-    if (!exists) {
-      await setDoc(userDocRef, {
-        fullName: user.displayName || '',
-        username: user.email?.split('@')[0] || `user_${Date.now()}`,
-        email: user.email,
-        userType: userType.value,
-        photoURL: user.photoURL,
-        createdAt: new Date(),
-        authProvider: 'google'
+      // Add user to firestore data
+      await setDoc(doc(db, 'users', user.uid), {
+          fullName: fullName.value.trim(),
+          username: username.value.trim(),
+          userType: userType.value,
+          email: email.value.trim(),
+          createdAt: new Date()
       })
+
+      router.push('/')
+
+    } catch (error) {
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage.value = 'This email is already registered'
+          break
+        case 'auth/invalid-email':
+          errorMessage.value = 'Invalid email format'
+          break
+        case 'auth/weak-password':
+          errorMessage.value = 'Password is too weak (min 6 characters)'
+          break
+        default:
+          errorMessage.value = 'Sign up failed. Please try again.'
+          console.error(error)
+      }
+    } finally {
+      isLoading.value = false
     }
-
-    router.push(userType.value === 'contractor' ? '/contractor/home' : '/homeowner/home')
-
-  } catch (error) {
-    console.error(error)
-    errorMessage.value = 'Google sign up failed'
-  } finally {
-    isLoading.value = false
   }
-}
+
+  const navigate = (path) => {
+    router.push(path)
+  }
+
+  // Google sign up
+  const signUpWithGoogle = async () => {
+    isLoading.value = true
+    errorMessage.value = ''
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
+
+      const userDocRef = doc(db, 'users', user.uid)
+      const exists = (await getDoc(userDocRef)).exists()
+
+      if (!exists) {
+        await setDoc(userDocRef, {
+          fullName: user.displayName || '',
+          username: user.email?.split('@')[0] || `user_${Date.now()}`,
+          email: user.email,
+          userType: userType.value,
+          photoURL: user.photoURL,
+          createdAt: new Date(),
+          authProvider: 'google'
+        })
+      }
+
+      router.push(userType.value === 'contractor' ? '/contractor/home' : '/homeowner/home')
+
+    } catch (error) {
+      console.error(error)
+      errorMessage.value = 'Google sign up failed'
+    } finally {
+      isLoading.value = false
+    }
+  }
 
 
 </script>
 
 <style scoped>
   * { 
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
 
-.container {
-        background: #eff6ff;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 1.5rem;
-    }
+  .container {
+    background: #eff6ff;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 1.5rem;
+  }
 
-    .login-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
+  .login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
 
-    .header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
 
-    #logo {
-        width: 3.5rem;
-        height: 3.5rem;
-    }
+  #logo {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
 
-    #heading {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(to right, #2563eb, #1d4ed8);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
+  #heading {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(to right, #2563eb, #1d4ed8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 
-    #subtitle {
-        margin-top: 0.75rem;
-        color: #4b5563;
-    }
+  #subtitle {
+    margin-top: 0.75rem;
+    color: #4b5563;
+  }
 
-    .login-form {
-        background: white;
-        width: 100%;
-        max-width: 420px;
-        padding: 2rem;
-        border-radius: 1rem;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        border: 1px solid #f3f4f6;
-    }
+  .login-form {
+    background: white;
+    width: 100%;
+    max-width: 420px;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+    border: 1px solid #f3f4f6;
+  }
 
-    #title {
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-    }
+  #title {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+  }
 
-    #user-type-label {
-        display: block;
-        margin-bottom: 0.75rem;
-        font-weight: 500;
-        color: #374151;
-    }
+  #user-type-label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+    color: #374151;
+  }
 
-    .toggle-container {
-        background: #f3f4f6;
-        border-radius: 0.5rem;
-        padding: 0.25rem;
-        display: flex;
-        margin-bottom: 1.5rem;
-    }
+  .toggle-container {
+    background: #f3f4f6;
+    border-radius: 0.5rem;
+    padding: 0.25rem;
+    display: flex;
+    margin-bottom: 1.5rem;
+  }
 
-    .toggle-btn {
-        flex: 1;
-        padding: 0.625rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        border: none;
-        background: none;
-        border-radius: 0.375rem;
-        cursor: pointer;
-    }
+  .toggle-btn {
+    flex: 1;
+    padding: 0.625rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    background: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+  }
 
-    .toggle-btn.active {
-        background: white;
-        color: #1d4ed8;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
+  .toggle-btn.active {
+    background: white;
+    color: #1d4ed8;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
 
-    .toggle-btn:hover {
-        color: #111827; 
-    }
+  .toggle-btn:hover {
+    color: #111827; 
+  }
 
-    .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
 
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 
-    .form-label {
-        font-weight: 500;
-        color: #374151;
-    }
+  .form-label {
+    font-weight: 500;
+    color: #374151;
+  }
 
-    .form-input,
-    .password-input {
-        height: 3rem;
-        padding: 0 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        font-size: 1rem;
-        outline: none;
-    }
+  .form-input,
+  .password-input {
+    height: 3rem;
+    padding: 0 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    outline: none;
+  }
 
-    .form-input:focus,
-    .password-input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px #3b82f640;
-    }
+  .form-input:focus,
+  .password-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px #3b82f640;
+  }
 
-    .password-wrapper {
-        position: relative;
-    }
+  .password-wrapper {
+    position: relative;
+  }
 
-    #password {
-        width: 100%;
-        box-sizing: border-box;      
-        padding: 0.75rem 1rem;        
-        min-width: 0;                 
-    }
+  #password {
+    width: 100%;
+    box-sizing: border-box;      
+    padding: 0.75rem 1rem;        
+    min-width: 0;                 
+  }
 
-    .password-toggle {
-        position: absolute;
-        right: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        color: #6b7280;
-        cursor: pointer;
-    }
+  .password-toggle {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+  }
 
-    .options-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.875rem;
-        color: #4b5563;
-    }
+  .options-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.875rem;
+    color: #4b5563;
+  }
 
-    .remember-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
-    }
+  .remember-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
 
-    .checkbox {
-        width: 1rem;
-        height: 1rem;
-        border-radius: 0.25rem;
-        accent-color: #2563eb;
-    }
+  .checkbox {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    accent-color: #2563eb;
+  }
 
-    .submit-btn {
-        width: 100%;
-        height: 3rem;
-        background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white;
-        font-weight: 600;
-        border: none;
-        border-radius: 0.375rem;
-        cursor: pointer;
-    }
+  .submit-btn {
+    width: 100%;
+    height: 3rem;
+    background: linear-gradient(to right, #2563eb, #1d4ed8);
+    color: white;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+  }
 
-    .submit-btn:hover:not(:disabled) {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-    }
+  .submit-btn:hover:not(:disabled) {
+    background: linear-gradient(to right, #1d4ed8, #1e40af);
+  }
 
-    .submit-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
-    .signup-section,
-    .footer {
-        margin-top: 1.5rem;
-        text-align: center;
-        font-size: 0.875rem;
-        color: #4b5563;
-    }
+  .signup-section,
+  .footer {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: #4b5563;
+  }
 
-    .signup-link,
-    .forgot-link,
-    .policy-link {
-        color: #2563eb;
-        font-weight: 500;
-        background: none;
-        border: none;
-        cursor: pointer;
-    }
+  .signup-link,
+  .forgot-link,
+  .policy-link {
+    color: #2563eb;
+    font-weight: 500;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
 
-    .signup-link:hover,
-    .forgot-link:hover,
-    .policy-link:hover {
-        color: #1d4ed8;
-    }
+  .signup-link:hover,
+  .forgot-link:hover,
+  .policy-link:hover {
+    color: #1d4ed8;
+  }
 
-.error-message {
-  color: #dc2626;
-  font-size: 0.875rem;
-  text-align: center;
-  margin: 0.5rem 0;
-}
+  .error-message {
+    color: #dc2626;
+    font-size: 0.875rem;
+    text-align: center;
+    margin: 0.5rem 0;
+  }
 
-.form-input {
-  width: 100%;
-  box-sizing: border-box;
-}
+  .form-input {
+    width: 100%;
+    box-sizing: border-box;
+  }
 
-.form-group {
-  margin-bottom: 0.25rem;
-}
+  .form-group {
+    margin-bottom: 0.25rem;
+  }
 
-.google-btn {
-  width: 100%;
-  height: 3rem;
-  margin-top: 0.5rem;
-  background: white;
-  color: #3c4043;
-  border: 1px solid #dadce0;
-  border-radius: 0.375rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+  .google-btn {
+    width: 100%;
+    height: 3rem;
+    margin-top: 0.5rem;
+    background: white;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
 
-.google-btn:hover {
-  background: #f8f9fa;
-  border-color: #c6c6c6;
-}
+  .google-btn:hover {
+    background: #f8f9fa;
+    border-color: #c6c6c6;
+  }
 
-.google-btn img {
-  width: 18px;
-  height: 18px;
-}
+  .google-btn img {
+    width: 18px;
+    height: 18px;
+  }
 
 </style>

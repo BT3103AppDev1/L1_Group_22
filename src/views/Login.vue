@@ -1,5 +1,6 @@
 <template>
     <div class="container">
+    <!-- Header + Slogan -->
     <div class="login-header">
         <div class="header">
             <img id="logo" src="../assets/reliabuild_logo2.png"/>
@@ -7,6 +8,7 @@
         </div>
         <p id="subtitle">Connect with trusted contractors</p>
     </div>
+    <!-- Choose user type -->
     <div class="login-form">
         <h2 id="title">Log In</h2>
         <label id="user-type-label">I am a</label>
@@ -28,6 +30,7 @@
               Contractor
             </button>
         </div>
+        <!-- Log In Form -->
          <form @submit.prevent="handleSubmit" class="form">
           <!-- Email -->
           <div class="form-group">
@@ -78,7 +81,7 @@
             {{ errorMessage }}
           </div>
 
-          <!-- Submit -->
+          <!-- Submit Button -->
           <button
             type="submit"
             :disabled="isLoading"
@@ -97,7 +100,7 @@
           </button>
         </form>
 
-        <!-- Sign Up link -->
+        <!-- Navigate to Sign Up -->
         <div class="signup-section">
           Don't have an account?
           <button @click="navigate('/signup')" class="signup-link">
@@ -117,146 +120,146 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router'
-import { Eye, EyeOff } from 'lucide-vue-next'
-import { signInWithEmailAndPassword } from 'firebase/auth'
-import { auth, googleProvider } from '@/firebase'
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
-import { getAuth, signOut, signInWithPopup } from "firebase/auth"
+  import { ref } from 'vue';
+  import { useRouter } from 'vue-router'
+  import { Eye, EyeOff } from 'lucide-vue-next'
+  import { signInWithEmailAndPassword } from 'firebase/auth'
+  import { auth, googleProvider } from '@/firebase'
+  import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore'
+  import { getAuth, signOut, signInWithPopup } from "firebase/auth"
 
-const db = getFirestore()
-const router = useRouter()
+  const db = getFirestore()
+  const router = useRouter()
 
-const email = ref('')
-const password = ref('')
-const showPassword = ref(false)
-const isLoading = ref(false)
-const userType = ref('homeowner');
-var realUserType = ref('')
+  const email = ref('')
+  const password = ref('')
+  const showPassword = ref(false)
+  const isLoading = ref(false)
+  const userType = ref('homeowner');
+  var realUserType = ref('')
 
-const errorMessage = ref('')
+  const errorMessage = ref('')
 
-function chooseHomeowner() {
-    userType.value = 'homeowner'
-}
-
-function chooseContractor() {
-    userType.value = 'contractor'
-}
-
-const handleSubmit = async () => {
-  isLoading.value = true
-  errorMessage.value = '' 
-
-  try {
-    const userCredential = await signInWithEmailAndPassword(
-      auth,
-      email.value.trim(),
-      password.value
-    )
-
-    const user = userCredential.user
-    const userDocRef = doc(db, 'users', user.uid)
-    const userDocSnap = await getDoc(userDocRef)
-
-    if (!userDocSnap.exists()) {
-      throw new Error('User profile not found')
-    }
-
-    const userData = userDocSnap.data()
-    realUserType = userData.userType   // "homeowner" or "contractor"
-
-    // Enforce correct userType
-    if (realUserType !== userType.value) {
-      await signOut(auth)
-      errorMessage.value = `This account is registered as a ${realUserType}.\nPlease select the correct type.`
-      return
-    }
-
-    console.log('Logged in user:', userCredential.user)
-    if (userType.value === 'contractor') {
-      router.push('/contractor/home')
-    } else {
-      router.push('/homeowner/home')
-    }
-    
-  } catch (error) {
-    console.error(error)
-    const code = error.code
-    if (
-      code === 'auth/wrong-password' ||
-      code === 'auth/user-not-found' ||
-      code === 'auth/invalid-credential' ||
-      code === 'auth/invalid-email'
-    ) {
-      errorMessage.value = 'Incorrect email or password. Please try again.'
-    } else if (code === 'auth/too-many-requests') {
-      errorMessage.value = 'Too many failed attempts. Please try again later.'
-    } else {
-      errorMessage.value = 'Something went wrong. Please try again.'
-    }
-  } finally {
-    isLoading.value = false
+  function chooseHomeowner() {
+      userType.value = 'homeowner'
   }
-  setTimeout(() => {
-    isLoading.value = false
-  }, 1000)
-}
 
-const navigate = (path) => {
-  router.push(path)
-}
+  function chooseContractor() {
+      userType.value = 'contractor'
+  }
 
-const signInWithGoogle = async () => {
-  isLoading.value = true
-  errorMessage.value = ''
+  const handleSubmit = async () => {
+    isLoading.value = true
+    errorMessage.value = '' 
+    // Firebase Log In
+    try {
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email.value.trim(),
+        password.value
+      )
 
-  try {
-    const result = await signInWithPopup(auth, googleProvider)
-    const user = result.user
+      const user = userCredential.user
+      const userDocRef = doc(db, 'users', user.uid)
+      const userDocSnap = await getDoc(userDocRef)
 
-    // Check if user exists in Firestore
-    const userDocRef = doc(db, 'users', user.uid)
-    const userDocSnap = await getDoc(userDocRef)
+      if (!userDocSnap.exists()) {
+        throw new Error('User profile not found')
+      }
 
-    if (!userDocSnap.exists()) {
-      // First-time Google login → create profile
-      await setDoc(userDocRef, {
-        fullName: user.displayName || '',
-        username: user.email?.split('@')[0] || '', // or generate better username
-        email: user.email,
-        userType: userType.value,        // Use the selected toggle (homeowner/contractor)
-        photoURL: user.photoURL,
-        createdAt: new Date(),
-        authProvider: 'google'
-      })
-    } else {
-      // Existing user - check if userType matches selection
       const userData = userDocSnap.data()
-      if (userData.userType !== userType.value) {
+      realUserType = userData.userType   // "homeowner" or "contractor"
+
+      // Enforce correct userType
+      if (realUserType !== userType.value) {
         await signOut(auth)
-        errorMessage.value = `This account is registered as a ${userData.userType}.\nPlease select the correct type.`
+        errorMessage.value = `This account is registered as a ${realUserType}.\nPlease select the correct type.`
         return
       }
-    }
 
-    // Redirect based on user type
-    if (userType.value === 'contractor') {
-      router.push('/contractor/home')
-    } else {
-      router.push('/homeowner/home')
+      console.log('Logged in user:', userCredential.user)
+      if (userType.value === 'contractor') {
+        router.push('/contractor/home')
+      } else {
+        router.push('/homeowner/home')
+      }
+      
+    } catch (error) {
+      console.error(error)
+      const code = error.code
+      if (
+        code === 'auth/wrong-password' ||
+        code === 'auth/user-not-found' ||
+        code === 'auth/invalid-credential' ||
+        code === 'auth/invalid-email'
+      ) {
+        errorMessage.value = 'Incorrect email or password. Please try again.'
+      } else if (code === 'auth/too-many-requests') {
+        errorMessage.value = 'Too many failed attempts. Please try again later.'
+      } else {
+        errorMessage.value = 'Something went wrong. Please try again.'
+      }
+    } finally {
+      isLoading.value = false
     }
-
-  } catch (error) {
-    console.error(error)
-    errorMessage.value = error.message.includes('popup-closed-by-user') 
-      ? 'Sign in was cancelled' 
-      : 'Failed to sign in with Google'
-  } finally {
-    isLoading.value = false
+    setTimeout(() => {
+      isLoading.value = false
+    }, 1000)
   }
-}
+
+  const navigate = (path) => {
+    router.push(path)
+  }
+
+  const signInWithGoogle = async () => {
+    isLoading.value = true
+    errorMessage.value = ''
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      const user = result.user
+
+      // Check if user exists in Firestore
+      const userDocRef = doc(db, 'users', user.uid)
+      const userDocSnap = await getDoc(userDocRef)
+
+      if (!userDocSnap.exists()) {
+        // First-time Google login → create profile
+        await setDoc(userDocRef, {
+          fullName: user.displayName || '',
+          username: user.email?.split('@')[0] || '', // or generate better username
+          email: user.email,
+          userType: userType.value,        // Use the selected toggle (homeowner/contractor)
+          photoURL: user.photoURL,
+          createdAt: new Date(),
+          authProvider: 'google'
+        })
+      } else {
+        // Existing user - check if userType matches selection
+        const userData = userDocSnap.data()
+        if (userData.userType !== userType.value) {
+          await signOut(auth)
+          errorMessage.value = `This account is registered as a ${userData.userType}.\nPlease select the correct type.`
+          return
+        }
+      }
+
+      // Redirect based on user type
+      if (userType.value === 'contractor') {
+        router.push('/contractor/home')
+      } else {
+        router.push('/homeowner/home')
+      }
+
+    } catch (error) {
+      console.error(error)
+      errorMessage.value = error.message.includes('popup-closed-by-user') 
+        ? 'Sign in was cancelled' 
+        : 'Failed to sign in with Google'
+    } finally {
+      isLoading.value = false
+    }
+  }
 
 
 
@@ -264,257 +267,257 @@ const signInWithGoogle = async () => {
 
 
 <style scoped>
-    * {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .container {
-        background: #eff6ff;
-        min-height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        padding: 1.5rem;
-    }
+  * {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  .container {
+      background: #eff6ff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+  }
 
-    .login-header {
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    .header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-    }
-
-    #logo {
-        width: 3.5rem;
-        height: 3.5rem;
-    }
-
-    #heading {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(to right, #2563eb, #1d4ed8);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-    }
-
-    #subtitle {
-        margin-top: 0.75rem;
-        color: #4b5563;
-    }
-
-    .login-form {
-        background: white;
-        width: 100%;
-        max-width: 420px;
-        padding: 2rem;
-        border-radius: 1rem;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
-        border: 1px solid #f3f4f6;
-    }
-
-    #title {
-        text-align: center;
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin-bottom: 1.5rem;
-    }
-
-    #user-type-label {
-        display: block;
-        margin-bottom: 0.75rem;
-        font-weight: 500;
-        color: #374151;
-    }
-
-    .toggle-container {
-        background: #f3f4f6;
-        border-radius: 0.5rem;
-        padding: 0.25rem;
-        display: flex;
-        margin-bottom: 1.5rem;
-    }
-
-    .toggle-btn {
-        flex: 1;
-        padding: 0.625rem;
-        font-size: 0.875rem;
-        font-weight: 600;
-        border: none;
-        background: none;
-        border-radius: 0.375rem;
-        cursor: pointer;
-    }
-
-    .toggle-btn.active {
-        background: white;
-        color: #1d4ed8;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .toggle-btn:hover {
-        color: #111827; 
-    }
-
-    .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-    }
-
-    .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .form-label {
-        font-weight: 500;
-        color: #374151;
-    }
-
-    .form-input,
-    .password-input {
-        height: 3rem;
-        padding: 0 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        font-size: 1rem;
-        outline: none;
-    }
-
-    .form-input:focus,
-    .password-input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px #3b82f640;
-    }
-
-    .password-wrapper {
-        position: relative;
-    }
-
-    #password {
-        width: 100%;
-        box-sizing: border-box;      
-        padding: 0.75rem 1rem;        
-        min-width: 0;                 
-    }
-
-    .password-toggle {
-        position: absolute;
-        right: 0.75rem;
-        top: 50%;
-        transform: translateY(-50%);
-        background: none;
-        border: none;
-        color: #6b7280;
-        cursor: pointer;
-    }
-
-    .options-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.875rem;
-        color: #4b5563;
-    }
-
-    .remember-label {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        cursor: pointer;
-    }
-
-    .checkbox {
-        width: 1rem;
-        height: 1rem;
-        border-radius: 0.25rem;
-        accent-color: #2563eb;
-    }
-
-    .submit-btn {
-        width: 100%;
-        height: 3rem;
-        background: linear-gradient(to right, #2563eb, #1d4ed8);
-        color: white;
-        font-weight: 600;
-        border: none;
-        border-radius: 0.375rem;
-        cursor: pointer;
-    }
-
-    .submit-btn:hover:not(:disabled) {
-        background: linear-gradient(to right, #1d4ed8, #1e40af);
-    }
-
-    .submit-btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-    }
-
-    .signup-section,
-    .footer {
-        margin-top: 1.5rem;
-        text-align: center;
-        font-size: 0.875rem;
-        color: #4b5563;
-    }
-
-    .signup-link,
-    .forgot-link,
-    .policy-link {
-        color: #2563eb;
-        font-weight: 500;
-        background: none;
-        border: none;
-        cursor: pointer;
-    }
-
-    .signup-link:hover,
-    .forgot-link:hover,
-    .policy-link:hover {
-        color: #1d4ed8;
-    }
-    .error-box {
-      color: #dc2626;           /* red-600 */
-      font-size: 0.875rem;
+  .login-header {
       text-align: center;
-      margin: 0.75rem 0 1.25rem;
-      padding: 0.5rem;
-      background-color: rgba(239, 68, 68, 0.1); /* very light red */
+      margin-bottom: 2rem;
+  }
+
+  .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+  }
+
+  #logo {
+      width: 3.5rem;
+      height: 3.5rem;
+  }
+
+  #heading {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #2563eb, #1d4ed8);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+  }
+
+  #subtitle {
+      margin-top: 0.75rem;
+      color: #4b5563;
+  }
+
+  .login-form {
+      background: white;
+      width: 100%;
+      max-width: 420px;
+      padding: 2rem;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      border: 1px solid #f3f4f6;
+  }
+
+  #title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+  }
+
+  #user-type-label {
+      display: block;
+      margin-bottom: 0.75rem;
+      font-weight: 500;
+      color: #374151;
+  }
+
+  .toggle-container {
+      background: #f3f4f6;
+      border-radius: 0.5rem;
+      padding: 0.25rem;
+      display: flex;
+      margin-bottom: 1.5rem;
+  }
+
+  .toggle-btn {
+      flex: 1;
+      padding: 0.625rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      border: none;
+      background: none;
       border-radius: 0.375rem;
-      white-space: pre-line;
-    }
+      cursor: pointer;
+  }
 
-    .google-btn {
-  width: 100%;
-  height: 3rem;
-  margin-top: 0.5rem;
-  background: white;
-  color: #3c4043;
-  border: 1px solid #dadce0;
-  border-radius: 0.375rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+  .toggle-btn.active {
+      background: white;
+      color: #1d4ed8;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
 
-.google-btn:hover {
-  background: #f8f9fa;
-  border-color: #c6c6c6;
-}
+  .toggle-btn:hover {
+      color: #111827; 
+  }
 
-.google-btn img {
-  width: 18px;
-  height: 18px;
-}
+  .form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+  }
+
+  .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+  }
+
+  .form-label {
+      font-weight: 500;
+      color: #374151;
+  }
+
+  .form-input,
+  .password-input {
+      height: 3rem;
+      padding: 0 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      font-size: 1rem;
+      outline: none;
+  }
+
+  .form-input:focus,
+  .password-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px #3b82f640;
+  }
+
+  .password-wrapper {
+      position: relative;
+  }
+
+  #password {
+      width: 100%;
+      box-sizing: border-box;      
+      padding: 0.75rem 1rem;        
+      min-width: 0;                 
+  }
+
+  .password-toggle {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+  }
+
+  .options-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+      color: #4b5563;
+  }
+
+  .remember-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+  }
+
+  .checkbox {
+      width: 1rem;
+      height: 1rem;
+      border-radius: 0.25rem;
+      accent-color: #2563eb;
+  }
+
+  .submit-btn {
+      width: 100%;
+      height: 3rem;
+      background: linear-gradient(to right, #2563eb, #1d4ed8);
+      color: white;
+      font-weight: 600;
+      border: none;
+      border-radius: 0.375rem;
+      cursor: pointer;
+  }
+
+  .submit-btn:hover:not(:disabled) {
+      background: linear-gradient(to right, #1d4ed8, #1e40af);
+  }
+
+  .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+  }
+
+  .signup-section,
+  .footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.875rem;
+      color: #4b5563;
+  }
+
+  .signup-link,
+  .forgot-link,
+  .policy-link {
+      color: #2563eb;
+      font-weight: 500;
+      background: none;
+      border: none;
+      cursor: pointer;
+  }
+
+  .signup-link:hover,
+  .forgot-link:hover,
+  .policy-link:hover {
+      color: #1d4ed8;
+  }
+  .error-box {
+    color: #dc2626;           
+    font-size: 0.875rem;
+    text-align: center;
+    margin: 0.75rem 0 1.25rem;
+    padding: 0.5rem;
+    background-color: rgba(239, 68, 68, 0.1);
+    border-radius: 0.375rem;
+    white-space: pre-line;
+  }
+
+  .google-btn {
+    width: 100%;
+    height: 3rem;
+    margin-top: 0.5rem;
+    background: white;
+    color: #3c4043;
+    border: 1px solid #dadce0;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .google-btn:hover {
+    background: #f8f9fa;
+    border-color: #c6c6c6;
+  }
+
+  .google-btn img {
+    width: 18px;
+    height: 18px;
+  }
 </style>

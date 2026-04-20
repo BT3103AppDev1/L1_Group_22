@@ -8,10 +8,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore'
 
-/**
- * Finds an existing conversation between the current homeowner and a contractor,
- * or creates a new one. Returns the conversation ID.
- */
+// Finds an existing conversation between the current homeowner and a contractor, or creates a new one. Returns the conversation ID.
 export async function getOrCreateConversation(contractorId) {
   const currentUid = auth.currentUser?.uid
   if (!currentUid) throw new Error('Not logged in')

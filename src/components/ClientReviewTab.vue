@@ -1,6 +1,6 @@
 <template>
   <h2>Homeowner's experience with the following Contractors</h2>
-
+  <!-- Review summary/averages -->
   <div class="review-summary">
     <div class="score-box">
       <!-- <div class="big-score">{{ contractor.rating }}</div> -->
@@ -25,7 +25,7 @@
   <div v-if="loading" class="status-text">Loading reviews...</div>
   <div v-else-if="errorMessage" class="status-text error-text">{{ errorMessage }}</div>
   <div v-else-if="reviews.length === 0" class="status-text">No reviews given yet.</div>
-
+  <!-- List of reviews (given to other contractors) -->
   <div v-else class="review-list">
     <ReviewCard
       v-for="review in reviews"
@@ -36,92 +36,92 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue"
-import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore"
-import { auth, db } from "@/firebase.js"
-import ReviewCard from "@/components/ReviewCard.vue"
+  import { ref, computed, onMounted } from "vue"
+  import { collection, doc, getDoc, getDocs, query, where, orderBy } from "firebase/firestore"
+  import { auth, db } from "@/firebase.js"
+  import ReviewCard from "@/components/ReviewCard.vue"
 
-const props = defineProps({
-  homeownerId: {
-    type: String,
-    required: true,
-  },
-})
-
-const reviews = ref([])
-const loading = ref(true)
-const errorMessage = ref("")
-
-const averageRating = computed(() => {
-  if (reviews.value.length === 0) return 0
-  const total = reviews.value.reduce((sum, r) => sum + (r.rating || 0), 0)
-  return (total / reviews.value.length).toFixed(1)
-})
-
-const reviewCount = computed(() => reviews.value.length)
-
-const reviewBreakdown = computed(() => {
-  const counts = [0, 0, 0, 0, 0]
-  reviews.value.forEach((r) => {
-    if (r.rating >= 1 && r.rating <= 5) counts[r.rating - 1]++
+  const props = defineProps({
+    homeownerId: {
+      type: String,
+      required: true,
+    },
   })
-  const total = reviews.value.length || 1
-  return [5, 4, 3, 2, 1].map((stars) => ({
-    stars,
-    percent: Math.round((counts[stars - 1] / total) * 100),
-  }))
-})
 
-async function loadReviews() {
-  try {
-    loading.value = true
-    errorMessage.value = ""
+  const reviews = ref([])
+  const loading = ref(true)
+  const errorMessage = ref("")
+  // Calculate review stats
+  const averageRating = computed(() => {
+    if (reviews.value.length === 0) return 0
+    const total = reviews.value.reduce((sum, r) => sum + (r.rating || 0), 0)
+    return (total / reviews.value.length).toFixed(1)
+  })
 
-    const q = query(
-      collection(db, "customerReviews"),
-      where("reviewerId", "==", props.homeownerId),
-      orderBy("createdAt", "desc")
-    )
+  const reviewCount = computed(() => reviews.value.length)
 
-    const snapshot = await getDocs(q)
+  const reviewBreakdown = computed(() => {
+    const counts = [0, 0, 0, 0, 0]
+    reviews.value.forEach((r) => {
+      if (r.rating >= 1 && r.rating <= 5) counts[r.rating - 1]++
+    })
+    const total = reviews.value.length || 1
+    return [5, 4, 3, 2, 1].map((stars) => ({
+      stars,
+      percent: Math.round((counts[stars - 1] / total) * 100),
+    }))
+  })
+  // Get all relevant reviews
+  async function loadReviews() {
+    try {
+      loading.value = true
+      errorMessage.value = ""
 
-    reviews.value = await Promise.all(
-      snapshot.docs.map(async (reviewDoc) => {
-        const data = reviewDoc.data()
+      const q = query(
+        collection(db, "customerReviews"),
+        where("reviewerId", "==", props.homeownerId),
+        orderBy("createdAt", "desc")
+      )
 
-        // Fetch the contractor's name that this review was written about
-        let reviewerName = "Unknown Contractor"
-        try {
-          const targetSnap = await getDoc(doc(db, "users", data.targetId))
-          if (targetSnap.exists()) {
-            reviewerName = targetSnap.data().fullName || "Unknown Contractor"
+      const snapshot = await getDocs(q)
+
+      reviews.value = await Promise.all(
+        snapshot.docs.map(async (reviewDoc) => {
+          const data = reviewDoc.data()
+
+          // Fetch the contractor's name that this review was written about
+          let reviewerName = "Unknown Contractor"
+          try {
+            const targetSnap = await getDoc(doc(db, "users", data.targetId))
+            if (targetSnap.exists()) {
+              reviewerName = targetSnap.data().fullName || "Unknown Contractor"
+            }
+          } catch (e) {
+            console.error("Failed to fetch contractor name", e)
           }
-        } catch (e) {
-          console.error("Failed to fetch contractor name", e)
-        }
 
-        return {
-          id: reviewDoc.id,
-          ...data,
-          reviewerName,
-        }
-      })
-    )
-  } catch (error) {
-    console.error("Error loading reviews:", error)
-    errorMessage.value = "Failed to load reviews."
-  } finally {
-    loading.value = false
+          return {
+            id: reviewDoc.id,
+            ...data,
+            reviewerName,
+          }
+        })
+      )
+    } catch (error) {
+      console.error("Error loading reviews:", error)
+      errorMessage.value = "Failed to load reviews."
+    } finally {
+      loading.value = false
+    }
   }
-}
 
-onMounted(() => {
-  loadReviews()
-})
+  onMounted(() => {
+    loadReviews()
+  })
 </script>
 
 <style scoped>
-    .review-summary {
+  .review-summary {
     background: #f8fafc;
     border-radius: 18px;
     padding: 22px;
@@ -198,6 +198,4 @@ onMounted(() => {
   .error-text {
     color: #dc2626;
   }
-  
-  
 </style>

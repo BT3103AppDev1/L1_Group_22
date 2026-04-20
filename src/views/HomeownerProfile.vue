@@ -3,50 +3,32 @@
     <div class="page-content">
       <section class="profile-card">
         <template v-if="!editing">
+          <!-- Personal Information -->
           <div class="profile-top">
+            <!-- Profile Photo -->
             <div class="avatar-wrap">
               <img v-if="photoURL" :src="photoURL" class="avatar-photo" />
               <div v-else class="avatar">{{ homeowner.initial }}</div>
             </div>
-
+            <!-- Name -->
             <div class="profile-main">
               <div class="name-row">
                 <h1>{{ homeowner.fullName }}</h1>
                 <span class="verified">✓</span>
               </div>
-
-              <p class="company">{{ homeowner.company }}</p>
-
-              <!-- <div class="rating-row">
-                <span class="star">★</span>
-                <span>{{ homeowner.rating }}</span>
-                <span class="muted">({{ homeowner.reviewCount }} reviews)</span>
-                <span class="dot">•</span>
-                <span class="muted">{{ homeowner.projectsCompleted }} projects completed</span>
-              </div> -->
-
+              <!-- More personal details -->
               <div class="info-grid">
                 <div class="info-item">✉ {{ homeowner.email }}</div>
                 <div class="info-item">📞 {{ homeowner.phone }}</div>
                 <div class="info-item">📍 {{ homeowner.location }}</div>
                 <div class="info-item">👤 Member since {{ homeowner.memberSince}}</div>
               </div>
-
-              <!-- <div class="skills-section">
-                <div class="skills-title">Skills & Specializations</div>
-                <div class="skill-list">
-                  <span v-for="skill in homeowner.skills" :key="skill" class="skill-pill">
-                    {{ skill }}
-                  </span>
-                </div>
-              </div> -->
-
-              <!-- <br><hr> -->
             </div>
-
+            <!-- Edit Profile Button -->
             <div class="edit-wrap" v-if="isOwner">
               <button class="outline-btn" @click="editing = true">Edit Profile</button>
             </div>
+            <!-- Project Tracker Dashboard - only visible by owner of profile page -->
             <div class="dashboard-numbers" v-if="isOwner">
               <div class="dashboard-stat">
                 <h1 class="stat-total">{{ projectStats.total }}</h1>
@@ -67,9 +49,10 @@
             </div>
           </div>
         </template>
-
+        <!-- Editting mode -->
         <template v-else>
           <div class="edit-layout">
+            <!-- Profile Photo -->
             <div class="avatar-wrap">
               <img v-if="photoURL" :src="photoURL" class="avatar-photo" />
               <div v-else class="avatar">{{ editForm.initial }}</div>
@@ -78,19 +61,14 @@
               </button>
               <input ref="photoInput" type="file" accept="image/*" style="display:none" @change="handlePhotoUpload" />
             </div>
-
+            <!-- Name -->
             <div class="edit-main">
               <div class="form-grid">
                 <div class="field">
                   <label>Full Name</label>
                   <input v-model="editForm.fullName" type="text" />
                 </div>
-
-                <!-- <div class="field">
-                  <label>Company Name</label>
-                  <input v-model="editForm.company" type="text" />
-                </div> -->
-
+                <!-- Other Personal Details -->
                 <div class="field">
                   <label>Email</label>
                   <input v-model="editForm.email" type="text" />
@@ -105,37 +83,8 @@
                   <label>Location</label>
                   <input v-model="editForm.location" type="text" />
                 </div>
-
-                <!-- <div class="field">
-                  <label>Years on the app</label>
-                  <input v-model="editForm.yearsExperience" type="number" />
-                </div> -->
               </div>
-
-              <!-- <div class="skill-editor">
-                <label>Skills & Specializations</label>
-                <div class="add-skill-row">
-                  <input
-                    v-model="newSkill"
-                    type="text"
-                    placeholder="Add new skill"
-                    @keyup.enter="addSkill"
-                  />
-                  <button class="square-btn" @click="addSkill">+</button>
-                </div>
-
-                <div class="skill-list editable-skills">
-                  <span
-                    v-for="(skill, index) in editForm.skills"
-                    :key="skill + index"
-                    class="skill-pill"
-                  >
-                    {{ skill }}
-                    <button class="remove-skill" @click="removeSkill(index)">×</button>
-                  </span>
-                </div>
-              </div> -->
-
+              <!-- Save/Cancel changes button -->
               <div class="edit-actions">
                 <button class="save-btn" @click="saveProfile">Save Changes</button>
                 <button class="cancel-btn" @click="cancelEdit">Cancel</button>
@@ -144,7 +93,7 @@
           </div>
         </template>
       </section>
-
+      <!-- Tabs - Projects, Saved Contractor, Reviews -->
       <section class="content-card">
         <div class="tabs">
           <button
@@ -173,9 +122,9 @@
 
         <div class="tab-content">
           <div v-if="activeTab === 'portfolio'">
-            <ProjectsTab :homeownerId="profileUid" @project-added="loadProjectStats"/>            
+            <ProjectsTab v-if="profileUid" :homeownerId="profileUid" @project-added="loadProjectStats"/>            
           </div>
-
+          <!-- Saved Contractors Tab - only visible to owner -->
           <div v-if="activeTab === 'opportunities' && isOwner">
             <SavedContractorsTab/>            
           </div>
@@ -194,25 +143,21 @@
   import { auth, db } from "@/firebase.js"
   import { doc, getDoc, setDoc, collection, query, where, getDocs } from "firebase/firestore"
   import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+  import { onAuthStateChanged } from 'firebase/auth'
 
   import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
   
   import ProjectsTab from "../components/ProjectsTab.vue"
   import SavedContractorsTab from "@/components/SavedContractorsTab.vue"
-  // import ReviewsTab from "@/components/ReviewsTab.vue"
   import ClientReviewTab from "@/components/ClientReviewTab.vue"
 
   const route = useRoute()
-  
-  // If a homeownerId param is in the URL, a homeowner is viewing someone else's profile.
-  // If no param, the contractor is viewing their own profile.
-  const profileUid = computed(() =>
-  route.params.homeownerId || auth.currentUser?.uid
-)
+  // Check if viewer is the profile page owner or another user
+  const profileUid = ref(route.params.homeownerId || "")
 
-const isOwner = computed(() =>
-  !route.params.homeownerId || route.params.homeownerId === auth.currentUser?.uid
-)
+  const isOwner = computed(() =>
+    !route.params.homeownerId || route.params.homeownerId === auth.currentUser?.uid
+  )
   
   const activeTab = ref("portfolio")
   const editing = ref(false)
@@ -222,27 +167,20 @@ const isOwner = computed(() =>
   const photoInput = ref(null)
   
   const homeowner = reactive({
-    initial: "D",
-    fullName: "Dom Nick",
-    memberSince: "-",
-    company: "Address here",
-    rating: 4.8,
-    reviewCount: 47,
-    projectsCompleted: 152,
-    email: "changgus@laif.com",
-    phone: "+65 8234 5678",
-    location: "Jurong West, Singapore",
-    yearsExperience: 12,
-    skills: [
-      "Kitchen Renovation",
-      "Bathroom Remodeling",
-      "Carpentry",
-      "Flooring",
-      "Painting",
-      "Electrical Work",
-    ],
+    initial: "",
+    fullName: "",
+    memberSince: "",
+    company: "",
+    rating: 0,
+    reviewCount: 0,
+    projectsCompleted: 0,
+    email: "",
+    phone: "",
+    location: "",
+    yearsExperience: 0,
+    skills: [],
   })
-  
+  // Allow editing personal information
   const editForm = reactive({
     initial: "",
     fullName: "",
@@ -252,140 +190,104 @@ const isOwner = computed(() =>
     location: "",
     yearsExperience: 0,
     skills: [],
-    // initial: homeowner.initial,
-    // fullName: homeowner.fullName,
-    // company: homeowner.company,
-    // email: homeowner.email,
-    // phone: homeowner.phone,
-    // location: homeowner.location,
-    // yearsExperience: homeowner.yearsExperience,
-    // skills: [...homeowner.skills],
   })
   
   function syncEditForm() {
-  editForm.initial = homeowner.initial
-  editForm.fullName = homeowner.fullName
-  editForm.company = homeowner.company
-  editForm.email = homeowner.email
-  editForm.phone = homeowner.phone
-  editForm.location = homeowner.location
-  editForm.yearsExperience = homeowner.yearsExperience
-  editForm.skills = [...homeowner.skills]
-}
-
-const projectStats = reactive({
-  total: 0,
-  active: 0,
-  inProgress: 0,
-  completed: 0,
-})
-
-async function loadHomeownerProfile() {
-  try {
-    const user = auth.currentUser
-    if (!user) return
-
-    // const userRef = doc(db, "users", user.uid)
-    const userRef = doc(db, "users", profileUid.value)
-    const userSnap = await getDoc(userRef)
-
-    if (!userSnap.exists()) return
-
-    const data = userSnap.data()
-
-    // if (data.userType !== "homeowner") return
-
-    homeowner.fullName = data.fullName || ""
-    homeowner.company = data.company || ""
-    homeowner.email = data.email || user.email || ""
-    homeowner.phone = data.phone || ""
-    homeowner.location = data.location || ""
-    //homeowner.yearsExperience = data.yearsExperience || 0
-    homeowner.memberSince = data.createdAt
-      ? data.createdAt.toDate().toLocaleDateString('en-SG', { month: 'long', year: 'numeric' })
-      : '—'
-    homeowner.skills = data.skills || []
-    homeowner.initial = homeowner.fullName
-      ? homeowner.fullName.charAt(0).toUpperCase()
-      : "X"
-    photoURL.value = data.photoURL || ""
-
-    syncEditForm()
-  } catch (error) {
-    console.error("Error loading homeowner profile:", error)
+    editForm.initial = homeowner.initial
+    editForm.fullName = homeowner.fullName
+    editForm.company = homeowner.company
+    editForm.email = homeowner.email
+    editForm.phone = homeowner.phone
+    editForm.location = homeowner.location
+    editForm.yearsExperience = homeowner.yearsExperience
+    editForm.skills = [...homeowner.skills]
   }
-}
-  
-  function addSkill() {
-    const skill = newSkill.value.trim()
-    if (!skill) return
-  
-    editForm.skills.push(skill)
-    newSkill.value = ""
+
+  const projectStats = reactive({
+    total: 0,
+    active: 0,
+    inProgress: 0,
+    completed: 0,
+  })
+  // Load personal information
+  async function loadHomeownerProfile() {
+    try {
+      const user = auth.currentUser
+      if (!user) return
+
+      // const userRef = doc(db, "users", user.uid)
+      const userRef = doc(db, "users", profileUid.value)
+      const userSnap = await getDoc(userRef)
+
+      if (!userSnap.exists()) return
+
+      const data = userSnap.data()
+
+      homeowner.fullName = data.fullName || ""
+      homeowner.company = data.company || ""
+      homeowner.email = data.email || user.email || ""
+      homeowner.phone = data.phone || ""
+      homeowner.location = data.location || ""
+      //homeowner.yearsExperience = data.yearsExperience || 0
+      homeowner.memberSince = data.createdAt
+        ? data.createdAt.toDate().toLocaleDateString('en-SG', { month: 'long', year: 'numeric' })
+        : '—'
+      homeowner.skills = data.skills || []
+      homeowner.initial = homeowner.fullName
+        ? homeowner.fullName.charAt(0).toUpperCase()
+        : "X"
+      photoURL.value = data.photoURL || ""
+
+      syncEditForm()
+    } catch (error) {
+      console.error("Error loading homeowner profile:", error)
+    }
   }
-  
-  function removeSkill(index) {
-    editForm.skills.splice(index, 1)
-  }
-  
+  // Save changes to editing personal info
   async function saveProfile() {
-  try {
-    const user = auth.currentUser
-    if (!user) return
+    try {
+      const user = auth.currentUser
+      if (!user) return
 
-    const userRef = doc(db, "users", user.uid)
-    // const userSnap = await getDoc(userRef)
+      const userRef = doc(db, "users", user.uid)
 
-    // if (!userSnap.exists()) return
+      await setDoc(
+        userRef,
+        {
+          fullName: editForm.fullName,
+          company: editForm.company,
+          email: editForm.email,
+          phone: editForm.phone,
+          location: editForm.location,
+          yearsExperience: Number(editForm.yearsExperience),
+          skills: [...editForm.skills],
+        },
+        { merge: true }
+      )
 
-    // const data = userSnap.data()
-    // if (data.userType !== "homeowner") return
+      homeowner.fullName = editForm.fullName
+      homeowner.company = editForm.company
+      homeowner.email = editForm.email
+      homeowner.phone = editForm.phone
+      homeowner.location = editForm.location
+      homeowner.yearsExperience = Number(editForm.yearsExperience)
+      homeowner.skills = [...editForm.skills]
+      homeowner.initial = homeowner.fullName
+        ? homeowner.fullName.charAt(0).toUpperCase()
+        : "M"
 
-    await setDoc(
-      userRef,
-      {
-        fullName: editForm.fullName,
-        company: editForm.company,
-        email: editForm.email,
-        phone: editForm.phone,
-        location: editForm.location,
-        yearsExperience: Number(editForm.yearsExperience),
-        skills: [...editForm.skills],
-      },
-      { merge: true }
-    )
-
-    homeowner.fullName = editForm.fullName
-    homeowner.company = editForm.company
-    homeowner.email = editForm.email
-    homeowner.phone = editForm.phone
-    homeowner.location = editForm.location
-    homeowner.yearsExperience = Number(editForm.yearsExperience)
-    homeowner.skills = [...editForm.skills]
-    homeowner.initial = homeowner.fullName
-      ? homeowner.fullName.charAt(0).toUpperCase()
-      : "M"
-
-    editing.value = false
-  } catch (error) {
-    console.error("Error saving homeowner profile:", error)
+      editing.value = false
+    } catch (error) {
+      console.error("Error saving homeowner profile:", error)
+    }
   }
-}
-  
+  // Cancel Changes
   function cancelEdit() {
     syncEditForm()
-    // editForm.initial = homeowner.initial
-    // editForm.fullName = homeowner.fullName
-    // editForm.company = homeowner.company
-    // editForm.email = homeowner.email
-    // editForm.phone = homeowner.phone
-    // editForm.location = homeowner.location
-    // editForm.yearsExperience = homeowner.yearsExperience
-    // editForm.skills = [...homeowner.skills]
     newSkill.value = ""
     editing.value = false
   }
-
+  // Load project tracker dashboard numbers 
   async function loadProjectStats() {
     try {
       const snap = await getDocs(
@@ -431,13 +333,21 @@ async function loadHomeownerProfile() {
   }
 
   onMounted(() => {
-    loadHomeownerProfile()
-    loadProjectStats()
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Set profileUid if not already set from route params
+        if (!profileUid.value) {
+          profileUid.value = user.uid
+        }
+        loadHomeownerProfile()
+        loadProjectStats()
+      }
+    })
   })
 
-  </script>
+</script>
   
-  <style scoped>
+<style scoped>
   * {
     box-sizing: border-box;
   }
@@ -446,76 +356,6 @@ async function loadHomeownerProfile() {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     text-align: center;
-  }
-  
-  /* .profile-page { //dont know what this was used for -b-19/3
-    min-height: 100vh;
-    background: #f4f6f9;
-    font-family: Arial, sans-serif;
-    color: #1f2937;
-  } */
-  
-  .top-bar {
-    background: linear-gradient(90deg, #1d5cff, #214bdf);
-    color: white;
-    padding: 18px 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-  }
-  
-  .brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .brand-logo {
-    width: 34px;
-    height: 34px;
-    object-fit: contain;
-  }
-  
-  .brand-name {
-    font-size: 18px;
-    font-weight: 700;
-  }
-  
-  .top-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .notif-btn {
-    background: transparent;
-    border: none;
-    color: white;
-    font-size: 18px;
-    position: relative;
-    cursor: pointer;
-  }
-  
-  .notif-badge {
-    position: absolute;
-    top: -6px;
-    right: -8px;
-    background: #ff7a00;
-    color: white;
-    border-radius: 999px;
-    font-size: 10px;
-    padding: 2px 5px;
-  }
-  
-  .top-btn {
-    border: none;
-    background: white;
-    color: #2754e6;
-    padding: 10px 16px;
-    border-radius: 10px;
-    font-weight: 600;
-    cursor: pointer;
   }
   
   .page-content {
@@ -583,31 +423,6 @@ async function loadHomeownerProfile() {
     font-size: 22px;
   }
   
-  .company {
-    margin: 8px 0 10px;
-    color: #4b5563;
-  }
-  
-  .rating-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-  
-  .star {
-    color: #f6c400;
-  }
-  
-  .dot {
-    color: #6b7280;
-  }
-  
-  .muted {
-    color: #6b7280;
-  }
-  
   .info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -617,25 +432,6 @@ async function loadHomeownerProfile() {
   
   .info-item {
     color: #4b5563;
-  }
-  
-  .skills-title {
-    font-weight: 600;
-    margin-bottom: 10px;
-  }
-  
-  .skill-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  
-  .skill-pill {
-    background: #e7efff;
-    color: #2958ec;
-    padding: 8px 12px;
-    border-radius: 999px;
-    font-size: 14px;
   }
   
   .edit-wrap {
@@ -683,15 +479,7 @@ async function loadHomeownerProfile() {
   .tab-content {
     padding: 28px;
   }
-  
-  /* .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 22px;
-  }
-  
-  .section-header h2, */
+
   .tab-content h2 {
     margin: 0 0 10px;
     font-size: 20px;
@@ -721,194 +509,12 @@ async function loadHomeownerProfile() {
     padding: 10px 14px;
   }
   
-  .portfolio-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 18px;
-  }
-  
-  .project-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    overflow: hidden;
-    background: white;
-  }
-  
-  .project-image {
-    width: 100%;
-    height: 210px;
-    object-fit: cover;
-    display: block;
-  }
-  
-  .project-body {
-    padding: 16px;
-  }
-  
-  .project-title-row {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: start;
-  }
-  
   .project-title-row h3 {
     margin: 0;
     font-size: 18px;
   }
   
-  .price-mark {
-    color: #ff5b1f;
-    font-size: 28px;
-    font-weight: 700;
-    line-height: 1;
-  }
-  
-  .project-desc {
-    color: #6b7280;
-    font-size: 14px;
-    line-height: 1.5;
-    margin: 10px 0 12px;
-  }
-  
-  .project-tags {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-  }
-  
-  .small-tag {
-    background: #f3f4f6;
-    color: #4b5563;
-    padding: 5px 8px;
-    border-radius: 8px;
-    font-size: 12px;
-  }
-  
-  .full-outline-btn {
-    width: 100%;
-    border: 1px solid #2958ec;
-    color: #2958ec;
-    background: white;
-    border-radius: 10px;
-    padding: 11px 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  
-  .subtext {
-    color: #6b7280;
-    margin-top: 0;
-  }
-  
-  
-  
-  
-  
-  .review-summary {
-    background: #f8fafc;
-    border-radius: 18px;
-    padding: 22px;
-    display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 24px;
-    margin-top: 14px;
-    margin-bottom: 22px;
-  }
-  
-  .score-box {
-    text-align: center;
-  }
-  
-  .big-score {
-    font-size: 56px;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 8px;
-  }
-  
-  .stars {
-    color: #f6c400;
-    font-size: 24px;
-    letter-spacing: 3px;
-    margin-bottom: 10px;
-  }
-  
-  .breakdown {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    justify-content: center;
-  }
-  
-  .bar-row {
-    display: grid;
-    grid-template-columns: 40px 1fr 44px;
-    gap: 12px;
-    align-items: center;
-  }
-  
-  .bar-label,
-  .bar-percent {
-    color: #4b5563;
-    font-size: 14px;
-  }
-  
-  .bar-track {
-    width: 100%;
-    height: 8px;
-    background: #e5e7eb;
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  
-  .bar-fill {
-    height: 100%;
-    background: #f6c400;
-    border-radius: 999px;
-  }
-  
-  .review-list {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .review-card {
-    border: 1px solid #e5e7eb;
-    border-radius: 16px;
-    padding: 20px;
-  }
-  
-  .review-card-top {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 12px;
-  }
-  
   .review-card-top h3 {
-    margin: 0;
-  }
-  
-  .review-right {
-    text-align: right;
-  }
-  
-  .review-stars {
-    color: #f6c400;
-    margin-bottom: 4px;
-  }
-  
-  .review-date {
-    color: #6b7280;
-    font-size: 14px;
-  }
-  
-  .review-text {
-    color: #374151;
-    line-height: 1.6;
     margin: 0;
   }
   
@@ -949,39 +555,6 @@ async function loadHomeownerProfile() {
     padding: 12px 14px;
     font-size: 14px;
     outline: none;
-  }
-  
-  .skill-editor {
-    margin-top: 18px;
-  }
-  
-  .add-skill-row {
-    display: grid;
-    grid-template-columns: 1fr 44px;
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-  
-  .square-btn {
-    border: none;
-    border-radius: 10px;
-    background: #2958ec;
-    color: white;
-    font-size: 24px;
-    cursor: pointer;
-  }
-  
-  .editable-skills {
-    margin-top: 8px;
-  }
-  
-  .remove-skill {
-    border: none;
-    background: transparent;
-    color: #2958ec;
-    margin-left: 8px;
-    cursor: pointer;
-    font-size: 14px;
   }
   
   .edit-actions {
@@ -1035,7 +608,7 @@ async function loadHomeownerProfile() {
     grid-column: 1 / -1;
     grid-row: 2;
     display: flex;
-    justify-content: space-around;   /* evenly spread across full width */
+    justify-content: space-around; 
     padding-top: 20px;
     margin-top: 16px;
     border-top: 1px solid #e5e7eb;
@@ -1056,10 +629,18 @@ async function loadHomeownerProfile() {
     color: #6b7280;
   }
 
-  .stat-total     { color: #2254f5; }
-  .stat-active    { color: #16a34a; }
-  .stat-progress  { color: #ea580c; }
-  .stat-completed { color: #111827; }
+  .stat-total { 
+    color: #2254f5; 
+  }
+  .stat-active { 
+    color: #16a34a; 
+  }
+  .stat-progress { 
+    color: #ea580c; 
+  }
+  .stat-completed { 
+    color: #111827; 
+  }
 
   .avatar-wrap {
     position: relative;
@@ -1093,4 +674,4 @@ async function loadHomeownerProfile() {
     justify-content: center;
   }
 
-  </style>
+</style>

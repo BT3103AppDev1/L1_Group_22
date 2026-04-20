@@ -3,7 +3,7 @@
   <ToolBarContractor v-else-if="userType === 'contractor'" />
  
   <div class="chats-page">
-    <!-- Tab switcher -->
+    <!-- Tabs - chats & proposals -->
     <div class="tab-bar">
       <button
         class="tab-btn"
@@ -21,7 +21,7 @@
       </button>
     </div>
  
-    <!-- ───────────── CHATS TAB ───────────── -->
+    <!-- CHATS TAB -->
     <div v-if="activeTab === 'chats'" class="tab-content">
       <div class="pane-layout">
  
@@ -49,7 +49,7 @@
           </div>
         </aside>
  
-        <!-- Right: message thread -->
+        <!-- conversation thread -->
         <section class="message-pane">
           <!-- No conversation selected -->
           <div v-if="!selectedConvo" class="no-convo">
@@ -67,7 +67,7 @@
               </div>
             </div>
 
-            <!-- ── Pinned Project Banner ── -->
+            <!-- Pinned Project Banner - pins project details to top of chat  -->
             <ProjectPinnedBanner
               v-if="pinnedProject"
               :project="pinnedProject"
@@ -94,7 +94,7 @@
                 v-for="msg in messages"
                 :key="msg.id"
                 class="msg-row"
-                :class="msg.senderId === currentUid ? 'msg-mine' : 'msg-theirs'"
+                :class="msg.senderId === currentUid.value ? 'msg-mine' : 'msg-theirs'"
               >
                 <!-- Regular text message -->
                 <div v-if="!msg.type || msg.type === 'text'" class="bubble">
@@ -224,7 +224,7 @@
       </div>
     </div>
  
-    <!-- ───────────── ADS / PROPOSALS TAB ───────────── -->
+    <!-- ADS / PROPOSALS TAB  -->
     <div v-if="activeTab === 'ads'" class="tab-content">
 
       <!-- HOMEOWNER: show received proposals -->
@@ -266,1097 +266,1139 @@
 </template>
  
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue"
-import { useRouter, useRoute } from "vue-router"
-import { getAuth } from "firebase/auth"
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  getDocs,
-} from "firebase/firestore"
-import { db } from "@/firebase"
-import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
-import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
-import ToolBarContractor from "@/components/ToolBarContractor.vue"
-import ProjectLinkMessage from "@/components/ProjectLinkMessage.vue"
-import ProjectPinnedBanner from "@/components/ProjectPinnedBanner.vue"
-import FileMessage from "@/components/FileMessage.vue"
-import defaultAvatar from "@/assets/default-avatar.png"
-import ProposalCard from "@/components/ProposalCard.vue"
-import ProposalMessage from "@/components/ProposalMessage.vue" 
-import ReviewButton from "@/components/ReviewButton.vue"
+  import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue"
+  import { useRouter, useRoute } from "vue-router"
+  import { getAuth, onAuthStateChanged } from "firebase/auth"
+  import {
+    collection,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    addDoc,
+    updateDoc,
+    doc,
+    getDoc,
+    serverTimestamp,
+    getDocs,
+  } from "firebase/firestore"
+  import { db } from "@/firebase"
+  import { getStorage, ref as storageRef, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+  import ToolBarHomeowner from "@/components/ToolBarHomeowner.vue"
+  import ToolBarContractor from "@/components/ToolBarContractor.vue"
+  import ProjectLinkMessage from "@/components/ProjectLinkMessage.vue"
+  import ProjectPinnedBanner from "@/components/ProjectPinnedBanner.vue"
+  import FileMessage from "@/components/FileMessage.vue"
+  import defaultAvatar from "@/assets/default-avatar.png"
+  import ProposalCard from "@/components/ProposalCard.vue"
+  import ProposalMessage from "@/components/ProposalMessage.vue" 
+  import ReviewButton from "@/components/ReviewButton.vue"
 
-const router = useRouter()
-const route = useRoute()
-const auth = getAuth()
-const currentUid = auth.currentUser?.uid
- 
-// ── User type ──
-const userType = ref(null)
- 
-// ── Tab state ──
-const activeTab = ref("chats")
- 
-// ── Conversations ──
-const convos = ref([])
-const loadingConvos = ref(true)
-const selectedConvo = ref(null)
- 
-// ── Messages ──
-const messages = ref([])
-const loadingMessages = ref(false)
-const newMessage = ref("")
-const messagesEl = ref(null)
- 
-// ── Ads ──
-const ads = ref([])
-const loadingAds = ref(true)
+  const router = useRouter()
+  const route = useRoute()
+  const auth = getAuth()
+  const currentUid = ref(null)
+  
+  // User type
+  const userType = ref(null)
+  
+  // Tab state 
+  const activeTab = ref("chats")
+  
+  // Conversations
+  const convos = ref([])
+  const loadingConvos = ref(true)
+  const selectedConvo = ref(null)
+  
+  // Messages 
+  const messages = ref([])
+  const loadingMessages = ref(false)
+  const newMessage = ref("")
+  const messagesEl = ref(null)
+  
+  // Ads 
+  const ads = ref([])
+  const loadingAds = ref(true)
 
-// ── Project sharing (homeowner) ──
-const homeownerProjects = ref([])
-const loadingProjects = ref(false)
-const showProjectDropdown = ref(false)
-const selectedProject = ref(null)
+  // Project sharing (homeowner) 
+  const homeownerProjects = ref([])
+  const loadingProjects = ref(false)
+  const showProjectDropdown = ref(false)
+  const selectedProject = ref(null)
 
-// ── Pinned project (derived from messages) ──
-const pinnedProject = computed(() => {
-  // Find the most recent projectLink message in the conversation
-  const projectMessages = messages.value.filter(m => m.type === 'projectLink')
-  if (projectMessages.length === 0) return null
-  return projectMessages[projectMessages.length - 1].projectSnapshot || null
-})
+  // Pinned project (derived from messages) 
+  const pinnedProject = computed(() => {
+    // Find the most recent projectLink message in the conversation
+    const projectMessages = messages.value.filter(m => m.type === 'projectLink')
+    if (projectMessages.length === 0) return null
+    return projectMessages[projectMessages.length - 1].projectSnapshot || null
+  })
 
-// ── Job situation ──
-const jobSituation = ref('none')
-const offeredProjectId = ref('')
-const convoContractorId = ref('')   // the other user's uid when homeowner is viewing
-const fileInputEl = ref(null)
-const pendingFile = ref(null)      // { file, previewUrl, name, size, type }
-const uploadProgress = ref(0)
-const isUploading = ref(false)
+  // Job situation
+  const jobSituation = ref('none')
+  const offeredProjectId = ref('')
+  const convoContractorId = ref('')   // the other user's uid when homeowner is viewing
+  const fileInputEl = ref(null)
+  const pendingFile = ref(null)      // { file, previewUrl, name, size, type }
+  const uploadProgress = ref(0)
+  const isUploading = ref(false)
 
-// Can send if there's text OR a project OR a file selected
-const canSend = computed(() => {
-  return newMessage.value.trim().length > 0
-    || selectedProject.value !== null
-    || pendingFile.value !== null
-})
+  // Send button - active if there's text OR a project OR a file selected
+  const canSend = computed(() => {
+    return newMessage.value.trim().length > 0
+      || selectedProject.value !== null
+      || pendingFile.value !== null
+  })
 
-// ── Proposals (homeowner view) ──
-const proposals = ref([])
-const loadingProposals = ref(true)
- 
-// ── Unsubscribers ──
-let unsubConvos = null
-let unsubMessages = null
- 
-// ─────────────────────────────────────────
-// Resolve current user's type
-// ─────────────────────────────────────────
-async function resolveUserType() {
-  if (!currentUid) return
-  const snap = await getDoc(doc(db, "users", currentUid))
-  if (snap.exists()) {
-    userType.value = snap.data().userType
+  // Proposals (homeowner view)
+  const proposals = ref([])
+  const loadingProposals = ref(true)
+  
+  let unsubConvos = null
+  let unsubMessages = null
+  
+  
+  // Resolve current user's type
+  async function resolveUserType() {
+    if (!currentUid.value) return
+    const snap = await getDoc(doc(db, "users", currentUid.value))
+    if (snap.exists()) {
+      userType.value = snap.data().userType
+    }
   }
-}
- 
-// ─────────────────────────────────────────
-// Firestore — conversations
-// ─────────────────────────────────────────
-function listenToConvos() {
-  if (!currentUid || !userType.value) return
-  const field = userType.value === "homeowner" ? "homeownerId" : "contractorId"
-  const otherField = userType.value === "homeowner" ? "contractorId" : "homeownerId"
- 
-  const q = query(collection(db, "conversations"), where(field, "==", currentUid))
- 
-  unsubConvos = onSnapshot(q, async (snap) => {
-    const enriched = await Promise.all(
-      snap.docs.map(async (d) => {
-        const data = { id: d.id, ...d.data() }
-        const otherUid = data[otherField]
-        if (otherUid) {
-          try {
-            const userSnap = await getDoc(doc(db, "users", otherUid))
-            if (userSnap.exists()) {
-              const u = userSnap.data()
-              data.otherName = u.fullName || u.username || "User"
-              data.otherPhoto = u.photoURL || null
-              data.otherSub = u.skills?.[0] || u.company || ""
+  
+  
+  // Firestore — conversations
+  function listenToConvos() {
+    if (!currentUid || !userType.value) return
+    const field = userType.value === "homeowner" ? "homeownerId" : "contractorId"
+    const otherField = userType.value === "homeowner" ? "contractorId" : "homeownerId"
+  
+    const q = query(collection(db, "conversations"), where(field, "==", currentUid.value))
+  
+    unsubConvos = onSnapshot(q, async (snap) => {
+      const enriched = await Promise.all(
+        snap.docs.map(async (d) => {
+          const data = { id: d.id, ...d.data() }
+          const otherUid = data[otherField]
+          if (otherUid) {
+            try {
+              const userSnap = await getDoc(doc(db, "users", otherUid))
+              if (userSnap.exists()) {
+                const u = userSnap.data()
+                data.otherName = u.fullName || u.username || "User"
+                data.otherPhoto = u.photoURL || null
+                data.otherSub = u.skills?.[0] || u.company || ""
+              }
+            } catch (e) {
+              console.error("Failed to fetch other user info", e)
             }
-          } catch (e) {
-            console.error("Failed to fetch other user info", e)
           }
-        }
-        return data
-      })
-    )
-    convos.value = enriched
-    loadingConvos.value = false
-
-    // Keep jobSituation in sync if this convo is already open
-    if (selectedConvo.value) {
-      const updated = enriched.find(c => c.id === selectedConvo.value.id)
-      if (updated) {
-        jobSituation.value = updated.jobSituation || 'none'
-        offeredProjectId.value = updated.offeredProjectId || ''
-      }
-    }
-  })
-}
- 
-// ─────────────────────────────────────────
-// Firestore — messages inside a conversation
-// ─────────────────────────────────────────
-function openConvo(convo) {
-  selectedConvo.value = convo
-  selectedProject.value = null
-  showProjectDropdown.value = false
-
-  if (unsubMessages) {
-    unsubMessages()
-    unsubMessages = null
-  }
-  loadingMessages.value = true
-  messages.value = []
- 
-  const q = query(
-    collection(db, "conversations", convo.id, "messages"),
-    orderBy("sentAt", "asc")
-  )
- 
-  unsubMessages = onSnapshot(q, (snap) => {
-    messages.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-    loadingMessages.value = false
-    scrollToBottom()
-  })
-
-  // Load homeowner's projects when opening a convo
-  if (userType.value === "homeowner") {
-    loadHomeownerProjects()
-  }
-
-  // Sync jobSituation from convo doc
-  jobSituation.value = convo.jobSituation || 'none'
-  offeredProjectId.value = convo.offeredProjectId || ''
-
-  // Track who the contractor is (needed for ReviewButton)
-  convoContractorId.value = userType.value === 'homeowner'
-    ? convo.contractorId || ''
-    : ''
-}
- 
-async function sendMessage() {
-  if (!canSend.value || !selectedConvo.value) return
-
-  const msgRef = collection(db, "conversations", selectedConvo.value.id, "messages")
-
-  // File message — upload first, then send
-  if (pendingFile.value) {
-    await uploadAndSendFile()
-    // also send any accompanying text
-    const text = newMessage.value.trim()
-    if (text) {
-      await addDoc(msgRef, {
-        type: "text", text,
-        senderId: currentUid, senderRole: userType.value, sentAt: serverTimestamp(),
-      })
-      newMessage.value = ""
-    }
-    return
-  }
-
-  // If a project is selected, send it as a projectLink message
-  if (selectedProject.value) {
-    const proj = selectedProject.value
-    await addDoc(msgRef, {
-      type: "projectLink",
-      text: newMessage.value.trim() || `I'd like to share a project with you: ${proj.title}`,
-      senderId: currentUid,
-      senderRole: userType.value,
-      sentAt: serverTimestamp(),
-      projectSnapshot: {
-        projectId: proj.id,
-        title: proj.title || "",
-        category: proj.category || "",
-        location: proj.location || "",
-        priceTier: proj.priceTier || "",
-        description: proj.description || "",
-        urgency: proj.urgency || "",
-        timeline: proj.timeline || "",
-        imageUrl: proj.imageUrl || (Array.isArray(proj.imageUrls) ? proj.imageUrls[0] : "") || "",
-      },
-    })
-    selectedProject.value = null
-  } else {
-    // Regular text message
-    const text = newMessage.value.trim()
-    if (!text) return
-    await addDoc(msgRef, {
-      type: "text",
-      text,
-      senderId: currentUid,
-      senderRole: userType.value,
-      sentAt: serverTimestamp(),
-    })
-  }
-
-  newMessage.value = ""
-}
-
-// ─────────────────────────────────────────
-// Project sharing helpers
-// ─────────────────────────────────────────
-async function loadHomeownerProjects() {
-  if (!currentUid) return
-  loadingProjects.value = true
-  try {
-    const snap = await getDocs(
-      query(
-        collection(db, "portfolioProjects"),
-        where("homeownerId", "==", currentUid)
-      )
-    )
-    homeownerProjects.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    .filter(p => p.status === 'active')
-  } catch (e) {
-    console.error("Failed to load projects", e)
-  }
-  loadingProjects.value = false
-}
-
-function toggleProjectDropdown() {
-  showProjectDropdown.value = !showProjectDropdown.value
-}
-
-function selectProject(proj) {
-  selectedProject.value = proj
-  showProjectDropdown.value = false
-}
-
-function clearSelectedProject() {
-  selectedProject.value = null
-}
-
-// ─────────────────────────────────────────
-// File attachment helpers
-// ─────────────────────────────────────────
-function triggerFilePick() {
-  fileInputEl.value?.click()
-}
-
-function onFileChosen(e) {
-  const file = e.target.files?.[0]
-  if (!file) return
-  const previewUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : null
-  pendingFile.value = { file, previewUrl, name: file.name, size: file.size, type: file.type }
-  // reset input so same file can be re-selected
-  e.target.value = ""
-}
-
-function clearPendingFile() {
-  if (pendingFile.value?.previewUrl) URL.revokeObjectURL(pendingFile.value.previewUrl)
-  pendingFile.value = null
-  uploadProgress.value = 0
-}
-
-async function uploadAndSendFile() {
-  if (!pendingFile.value || !selectedConvo.value) return
-  const { file } = pendingFile.value
-  const storage = getStorage()
-  const path = `chat-files/${selectedConvo.value.id}/${Date.now()}_${file.name}`
-  const sRef = storageRef(storage, path)
-  const task = uploadBytesResumable(sRef, file)
-
-  isUploading.value = true
-  uploadProgress.value = 0
-
-  return new Promise((resolve, reject) => {
-    task.on(
-      "state_changed",
-      (snap) => {
-        uploadProgress.value = Math.round((snap.bytesTransferred / snap.totalBytes) * 100)
-      },
-      (err) => {
-        isUploading.value = false
-        console.error("Upload failed", err)
-        reject(err)
-      },
-      async () => {
-        const fileUrl = await getDownloadURL(task.snapshot.ref)
-        const msgRef = collection(db, "conversations", selectedConvo.value.id, "messages")
-        await addDoc(msgRef, {
-          type: "file",
-          text: "",
-          fileUrl,
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type,
-          senderId: currentUid,
-          senderRole: userType.value,
-          sentAt: serverTimestamp(),
+          return data
         })
-        isUploading.value = false
-        clearPendingFile()
-        resolve()
+      )
+      convos.value = enriched
+      loadingConvos.value = false
+
+      // Keep jobSituation in sync if this convo is already open
+      if (selectedConvo.value) {
+        const updated = enriched.find(c => c.id === selectedConvo.value.id)
+        if (updated) {
+          jobSituation.value = updated.jobSituation || 'none'
+          offeredProjectId.value = updated.offeredProjectId || ''
+        }
       }
-    )
-  })
-}
-
-
-function goToProject(projectId) {
-  if (projectId) {
-    router.push(`/job-details/${projectId}`)
-  }
-}
-
-// ─────────────────────────────────────────
-// Job situation handlers
-// ─────────────────────────────────────────
-async function handleOffer() {
-  if (!selectedConvo.value || !pinnedProject.value) return
-  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
-    jobSituation: "offered",
-    offeredProjectId: pinnedProject.value.projectId,
-    offeredAt: serverTimestamp(),
-  })
-  jobSituation.value = "offered"
-}
-
-async function handleAccept() {
-  if (!selectedConvo.value) return
-  const projectId = selectedConvo.value.offeredProjectId || offeredProjectId.value
-  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
-    jobSituation: "accepted",
-    acceptedAt: serverTimestamp(),
-  })
-  if (projectId) {
-    await updateDoc(doc(db, "portfolioProjects", projectId), {
-      status: "inProgress",
-      assignedContractorId: currentUid,
-      contractorId: currentUid,
     })
   }
-  jobSituation.value = "accepted"
-}
+  
+  // Firestore — messages inside a conversation
+  function openConvo(convo) {
+    selectedConvo.value = convo
+    selectedProject.value = null
+    showProjectDropdown.value = false
 
-async function handleMarkComplete() {
-  if (!selectedConvo.value) return
-  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
-    jobSituation: "completed",
-    completedAt: serverTimestamp(),
-  })
-  jobSituation.value = "completed"
-}
-
-async function handleConfirm() {
-  if (!selectedConvo.value) return
-  const projectId = selectedConvo.value.offeredProjectId || offeredProjectId.value
-  await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
-    jobSituation: "confirmed",
-    confirmedAt: serverTimestamp(),
-  })
-  if (projectId) {
-    await updateDoc(doc(db, "portfolioProjects", projectId), {
-      status: "completed",
-    })
-  }
-  jobSituation.value = "confirmed"
-}
-
-function handleReviewSubmitted() {
-  jobSituation.value = "reviewed"
-}
-
-function scrollToBottom() {
-  nextTick(() => {
-    if (messagesEl.value) {
-      messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+    if (unsubMessages) {
+      unsubMessages()
+      unsubMessages = null
     }
-  })
-}
- 
-watch(messages, () => scrollToBottom())
+    loadingMessages.value = true
+    messages.value = []
+  
+    const q = query(
+      collection(db, "conversations", convo.id, "messages"),
+      orderBy("sentAt", "asc")
+    )
+  
+    unsubMessages = onSnapshot(q, (snap) => {
+      messages.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      loadingMessages.value = false
+      scrollToBottom()
+    })
 
-// Close dropdown when clicking outside
-function handleClickOutside(e) {
-  if (!e.target.closest('.project-selector-wrapper')) {
+    // Load homeowner's projects when opening a convo
+    if (userType.value === "homeowner") {
+      loadHomeownerProjects()
+    }
+
+    // Sync jobSituation from convo doc
+    jobSituation.value = convo.jobSituation || 'none'
+    offeredProjectId.value = convo.offeredProjectId || ''
+
+    // Track who the contractor is (needed for ReviewButton)
+    convoContractorId.value = userType.value === 'homeowner'
+      ? convo.contractorId || ''
+      : ''
+  }
+  
+  async function sendMessage() {
+    if (!canSend.value || !selectedConvo.value) return
+
+    const msgRef = collection(db, "conversations", selectedConvo.value.id, "messages")
+
+    // File message — upload first, then send
+    if (pendingFile.value) {
+      await uploadAndSendFile()
+      // also send any accompanying text
+      const text = newMessage.value.trim()
+      if (text) {
+        await addDoc(msgRef, {
+          type: "text", text,
+          senderId: currentUid.value, senderRole: userType.value, sentAt: serverTimestamp(),
+        })
+        newMessage.value = ""
+      }
+      return
+    }
+
+    // If a project is selected, send it as a projectLink message
+    if (selectedProject.value) {
+      const proj = selectedProject.value
+      await addDoc(msgRef, {
+        type: "projectLink",
+        text: newMessage.value.trim() || `I'd like to share a project with you: ${proj.title}`,
+        senderId: currentUid,
+        senderRole: userType.value,
+        sentAt: serverTimestamp(),
+        projectSnapshot: {
+          projectId: proj.id,
+          title: proj.title || "",
+          category: proj.category || "",
+          location: proj.location || "",
+          priceTier: proj.priceTier || "",
+          description: proj.description || "",
+          urgency: proj.urgency || "",
+          timeline: proj.timeline || "",
+          imageUrl: proj.imageUrl || (Array.isArray(proj.imageUrls) ? proj.imageUrls[0] : "") || "",
+        },
+      })
+      selectedProject.value = null
+    } else {
+      // Regular text message
+      const text = newMessage.value.trim()
+      if (!text) return
+      await addDoc(msgRef, {
+        type: "text",
+        text,
+        senderId: currentUid,
+        senderRole: userType.value,
+        sentAt: serverTimestamp(),
+      })
+    }
+
+    newMessage.value = ""
+  }
+
+  // Project sharing function
+  async function loadHomeownerProjects() {
+    if (!currentUid.value) return
+    loadingProjects.value = true
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "portfolioProjects"),
+          where("homeownerId", "==", currentUid.value)
+        )
+      )
+      homeownerProjects.value = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(p => p.status === 'active')
+    } catch (e) {
+      console.error("Failed to load projects", e)
+    }
+    loadingProjects.value = false
+  }
+
+  function toggleProjectDropdown() {
+    showProjectDropdown.value = !showProjectDropdown.value
+  }
+
+  function selectProject(proj) {
+    selectedProject.value = proj
     showProjectDropdown.value = false
   }
-}
 
-// ─────────────────────────────────────────
-// Firestore — proposals (homeowner view)
-// ─────────────────────────────────────────
-async function loadProposals() {
-  if (!currentUid) return
-  loadingProposals.value = true
-  try {
-    const snap = await getDocs(
-      query(
-        collection(db, "proposals"),
-        where(userType.value === "homeowner" ? "homeownerId" : "contractorId", "==", currentUid)
-      )
-    )
-    const results = await Promise.all(
-      snap.docs.map(async (d) => {
-        const data = { id: d.id, ...d.data() }
-        if (data.contractorId) {
-          try {
-            const userSnap = await getDoc(doc(db, "users", data.contractorId))
-            if (userSnap.exists()) {
-              const u = userSnap.data()
-              data.contractorName     = u.fullName || u.username || "Contractor"
-              data.contractorPhoto    = u.photoURL || null
-              data.contractorRating   = u.rating || null
-              data.contractorLocation = u.location || null
-            }
-          } catch (e) {
-            console.error("Failed to fetch contractor info", e)
-          }
+  function clearSelectedProject() {
+    selectedProject.value = null
+  }
+
+  // File/Image attachment helpers
+  function triggerFilePick() {
+    fileInputEl.value?.click()
+  }
+
+  function onFileChosen(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const previewUrl = file.type.startsWith("image/") ? URL.createObjectURL(file) : null
+    pendingFile.value = { file, previewUrl, name: file.name, size: file.size, type: file.type }
+    // reset input so same file can be re-selected
+    e.target.value = ""
+  }
+
+  function clearPendingFile() {
+    if (pendingFile.value?.previewUrl) URL.revokeObjectURL(pendingFile.value.previewUrl)
+    pendingFile.value = null
+    uploadProgress.value = 0
+  }
+
+  async function uploadAndSendFile() {
+    if (!pendingFile.value || !selectedConvo.value) return
+    const { file } = pendingFile.value
+    const storage = getStorage()
+    const path = `chat-files/${selectedConvo.value.id}/${Date.now()}_${file.name}`
+    const sRef = storageRef(storage, path)
+    const task = uploadBytesResumable(sRef, file)
+
+    isUploading.value = true
+    uploadProgress.value = 0
+
+    return new Promise((resolve, reject) => {
+      task.on(
+        "state_changed",
+        (snap) => {
+          uploadProgress.value = Math.round((snap.bytesTransferred / snap.totalBytes) * 100)
+        },
+        (err) => {
+          isUploading.value = false
+          console.error("Upload failed", err)
+          reject(err)
+        },
+        async () => {
+          const fileUrl = await getDownloadURL(task.snapshot.ref)
+          const msgRef = collection(db, "conversations", selectedConvo.value.id, "messages")
+          await addDoc(msgRef, {
+            type: "file",
+            text: "",
+            fileUrl,
+            fileName: file.name,
+            fileSize: file.size,
+            fileType: file.type,
+            senderId: currentUid.value,
+            senderRole: userType.value,
+            sentAt: serverTimestamp(),
+          })
+          isUploading.value = false
+          clearPendingFile()
+          resolve()
         }
-        data.submittedDate = data.createdAt?.toDate
-          ? data.createdAt.toDate().toLocaleDateString("en-GB", {
-              day: "2-digit", month: "short", year: "numeric",
-            })
-          : ""
-        return data
-      })
-    )
-    // Sort from newest on top to oldest at bottom
-    proposals.value = results.sort((a, b) => {
-      const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
-      const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
-      return bTime - aTime
-    })
-  } catch (e) {
-    console.error("Failed to load proposals", e)
-  }
-  loadingProposals.value = false
-}
-
-async function openProposalChat(proposal) {
-  const { getOrCreateConversation } = await import("@/composables/useChat")
-  const convoId = await getOrCreateConversation(proposal.contractorId)
-
-  const msgRef = collection(db, "conversations", convoId, "messages")
-  const existing = await getDocs(
-    query(msgRef, where("type", "==", "proposal"), where("proposalId", "==", proposal.id))
-  )
-
-  if (existing.empty) {
-    await addDoc(msgRef, {
-      type: "proposal",
-      text: `I've submitted a proposal for your project: ${proposal.projectTitle}`,
-      senderId: proposal.contractorId,
-      senderRole: "contractor",
-      sentAt: serverTimestamp(),
-      proposalId: proposal.id,
-      proposalSnapshot: {
-        contractorName: proposal.contractorName || "Contractor",
-        priceRange:     proposal.priceRange || "",
-        duration:       proposal.duration || "",
-        coverLetter:    proposal.coverLetter || "",
-        projectTitle:   proposal.projectTitle || "",
-      },
+      )
     })
   }
 
-  activeTab.value = "chats"
-  const unwatch = watch(convos, (list) => {
-    const match = list.find(c => c.id === convoId)
-    if (match) {
-      openConvo(match)
-      unwatch()
+  function goToProject(projectId) {
+    if (projectId) {
+      router.push(`/job-details/${projectId}`)
     }
-  }, { immediate: true })
-}
-
-async function declineProposal(proposal) {
-  if (!confirm(`Decline proposal from ${proposal.contractorName}?`)) return
-  try {
-    await updateDoc(doc(db, "proposals", proposal.id), { status: "declined" })
-    proposals.value = proposals.value.filter(p => p.id !== proposal.id)
-  } catch (e) {
-    console.error("Failed to decline proposal", e)
   }
-}
 
-// ─────────────────────────────────────────
-// Firestore — advertisements
-// ─────────────────────────────────────────
-async function loadAds() {
-  loadingAds.value = true
-  try {
-    const snap = await getDocs(
-      query(collection(db, "advertisements"), orderBy("createdAt", "desc"))
+  
+  // Job situation handlers
+  async function handleOffer() {
+    if (!selectedConvo.value || !pinnedProject.value) return
+    await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+      jobSituation: "offered",
+      offeredProjectId: pinnedProject.value.projectId,
+      offeredAt: serverTimestamp(),
+    })
+    jobSituation.value = "offered"
+  }
+
+  async function handleAccept() {
+    if (!selectedConvo.value) return
+    const projectId = selectedConvo.value.offeredProjectId || offeredProjectId.value
+    await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+      jobSituation: "accepted",
+      acceptedAt: serverTimestamp(),
+    })
+    if (projectId) {
+      await updateDoc(doc(db, "portfolioProjects", projectId), {
+        status: "inProgress",
+        assignedContractorId: currentUid.value,
+        contractorId: currentUid,
+      })
+    }
+    jobSituation.value = "accepted"
+  }
+
+  async function handleMarkComplete() {
+    if (!selectedConvo.value) return
+    await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+      jobSituation: "completed",
+      completedAt: serverTimestamp(),
+    })
+    jobSituation.value = "completed"
+  }
+
+  async function handleConfirm() {
+    if (!selectedConvo.value) return
+    const projectId = selectedConvo.value.offeredProjectId || offeredProjectId.value
+    await updateDoc(doc(db, "conversations", selectedConvo.value.id), {
+      jobSituation: "confirmed",
+      confirmedAt: serverTimestamp(),
+    })
+    if (projectId) {
+      await updateDoc(doc(db, "portfolioProjects", projectId), {
+        status: "completed",
+      })
+    }
+    jobSituation.value = "confirmed"
+  }
+
+  function handleReviewSubmitted() {
+    jobSituation.value = "reviewed"
+  }
+
+  function scrollToBottom() {
+    nextTick(() => {
+      if (messagesEl.value) {
+        messagesEl.value.scrollTop = messagesEl.value.scrollHeight
+      }
+    })
+  }
+  
+  watch(messages, () => scrollToBottom())
+
+  // Close dropdown when clicking outside
+  function handleClickOutside(e) {
+    if (!e.target.closest('.project-selector-wrapper')) {
+      showProjectDropdown.value = false
+    }
+  }
+
+  // Firestore — proposals (homeowner view)
+  async function loadProposals() {
+    if (!currentUid.value) return
+    loadingProposals.value = true
+    try {
+      const snap = await getDocs(
+        query(
+          collection(db, "proposals"),
+          where(userType.value === "homeowner" ? "homeownerId" : "contractorId", "==", currentUid.value)
+        )
+      )
+      const results = await Promise.all(
+        snap.docs.map(async (d) => {
+          const data = { id: d.id, ...d.data() }
+
+          // For homeowners: fetch contractor info
+          // For contractors: fetch homeowner info
+          const otherUid = userType.value === "homeowner" ? data.contractorId : data.homeownerId
+          if (otherUid) {
+            try {
+              const userSnap = await getDoc(doc(db, "users", otherUid))
+              if (userSnap.exists()) {
+                const u = userSnap.data()
+                if (userType.value === "homeowner") {
+                  data.contractorName     = u.fullName || u.username || "Contractor"
+                  data.contractorPhoto    = u.photoURL || null
+                  data.contractorRating   = u.rating || null
+                  data.contractorLocation = u.location || null
+                } else {
+                  // Contractor viewing: show homeowner details
+                  data.contractorName     = u.fullName || u.username || "Homeowner"
+                  data.contractorPhoto    = u.photoURL || null
+                  data.contractorRating   = null
+                  data.contractorLocation = u.location || null
+                }
+              }
+            } catch (e) {
+              console.error("Failed to fetch user info", e)
+            }
+          }
+          data.submittedDate = data.createdAt?.toDate
+            ? data.createdAt.toDate().toLocaleDateString("en-GB", {
+                day: "2-digit", month: "short", year: "numeric",
+              })
+            : ""
+          return data
+        })
+      )
+      // Sort from newest on top to oldest at bottom
+      proposals.value = results.sort((a, b) => {
+        const aTime = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0)
+        const bTime = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0)
+        return bTime - aTime
+      })
+    } catch (e) {
+      console.error("Failed to load proposals", e)
+    }
+    loadingProposals.value = false
+  }
+
+  async function openProposalChat(proposal) {
+    const { getOrCreateConversation } = await import("@/composables/useChat")
+    const convoId = await getOrCreateConversation(proposal.contractorId)
+
+    const msgRef = collection(db, "conversations", convoId, "messages")
+    const existing = await getDocs(
+      query(msgRef, where("type", "==", "proposal"), where("proposalId", "==", proposal.id))
     )
-    ads.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-  } catch (e) {
-    console.error(e)
-  }
-  loadingAds.value = false
-}
- 
-function handleAdCta(ad) {
-  if (ad.contractorId) {
-    router.push({ name: "ContractorProfile", params: { id: ad.contractorId } })
-  }
-}
- 
-// ─────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────
-function formatTime(ts) {
-  if (!ts) return ""
-  const date = ts.toDate ? ts.toDate() : new Date(ts)
-  const now = new Date()
-  const diffDays = Math.floor((now - date) / 86400000)
-  if (diffDays === 0) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-  if (diffDays === 1) return "Yesterday"
-  if (diffDays < 7) return date.toLocaleDateString([], { weekday: "short" })
-  return date.toLocaleDateString([], { day: "2-digit", month: "short" })
-}
- 
-// ─────────────────────────────────────────
-// Lifecycle
-// ─────────────────────────────────────────
-onMounted(async () => {
-  await resolveUserType()
-  listenToConvos()
-  loadAds()
-  loadProposals()
-  document.addEventListener("click", handleClickOutside)
 
-  // Auto-open a conversation if navigated from ContractorCard
-  const targetConvoId = route.query.convoId
-  if (targetConvoId) {
+    if (existing.empty) {
+      await addDoc(msgRef, {
+        type: "proposal",
+        text: `I've submitted a proposal for your project: ${proposal.projectTitle}`,
+        senderId: proposal.contractorId,
+        senderRole: "contractor",
+        sentAt: serverTimestamp(),
+        proposalId: proposal.id,
+        proposalSnapshot: {
+          contractorName: proposal.contractorName || "Contractor",
+          priceRange:     proposal.priceRange || "",
+          duration:       proposal.duration || "",
+          coverLetter:    proposal.coverLetter || "",
+          projectTitle:   proposal.projectTitle || "",
+        },
+      })
+    }
+
+    activeTab.value = "chats"
     const unwatch = watch(convos, (list) => {
-      const match = list.find(c => c.id === targetConvoId)
+      const match = list.find(c => c.id === convoId)
       if (match) {
         openConvo(match)
         unwatch()
       }
     }, { immediate: true })
   }
-})
- 
-onUnmounted(() => {
-  unsubConvos?.()
-  unsubMessages?.()
-  document.removeEventListener("click", handleClickOutside)
-})
+
+  async function declineProposal(proposal) {
+    if (!confirm(`Decline proposal from ${proposal.contractorName}?`)) return
+    try {
+      await updateDoc(doc(db, "proposals", proposal.id), { status: "declined" })
+      proposals.value = proposals.value.filter(p => p.id !== proposal.id)
+    } catch (e) {
+      console.error("Failed to decline proposal", e)
+    }
+  }
+
+  // Firestore — advertisements
+  async function loadAds() {
+    loadingAds.value = true
+    try {
+      const snap = await getDocs(
+        query(collection(db, "advertisements"), orderBy("createdAt", "desc"))
+      )
+      ads.value = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    } catch (e) {
+      console.error(e)
+    }
+    loadingAds.value = false
+  }
+  
+  function handleAdCta(ad) {
+    if (ad.contractorId) {
+      router.push({ name: "ContractorProfile", params: { id: ad.contractorId } })
+    }
+  }
+  
+  // Helpers
+  function formatTime(ts) {
+    if (!ts) return ""
+    const date = ts.toDate ? ts.toDate() : new Date(ts)
+    const now = new Date()
+    const diffDays = Math.floor((now - date) / 86400000)
+    if (diffDays === 0) return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    if (diffDays === 1) return "Yesterday"
+    if (diffDays < 7) return date.toLocaleDateString([], { weekday: "short" })
+    return date.toLocaleDateString([], { day: "2-digit", month: "short" })
+  }
+  
+  // Mounting
+  onMounted(() => {
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return
+      currentUid.value = user.uid
+      await resolveUserType()
+      listenToConvos()
+      loadAds()
+      loadProposals()
+      document.addEventListener("click", handleClickOutside)
+
+      const targetConvoId = route.query.convoId
+      if (targetConvoId) {
+        const unwatch = watch(convos, (list) => {
+          const match = list.find(c => c.id === targetConvoId)
+          if (match) {
+            openConvo(match)
+            unwatch()
+          }
+        }, { immediate: true })
+      }
+    })
+  })
+  
+  onUnmounted(() => {
+    unsubConvos?.()
+    unsubMessages?.()
+    document.removeEventListener("click", handleClickOutside)
+  })
 </script>
  
 <style scoped>
-.chats-page {
-  background: #f3f4f6;
-  min-height: calc(100vh - 72px);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-}
- 
-/* ── Tab bar ── */
-.tab-bar {
-  display: flex;
-  gap: 0;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 32px;
-}
- 
-.tab-btn {
-  position: relative;
-  background: none;
-  border: none;
-  padding: 16px 24px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #6b7280;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transition: color 0.15s, border-color 0.15s;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
- 
-.tab-btn.active {
-  color: #2254f5;
-  border-bottom-color: #2254f5;
-}
- 
-/* ── Tab content wrapper ── */
-.tab-content {
-  padding: 24px 32px;
-}
- 
-/* ─────────────────────────────────────
-   CHATS PANE
-───────────────────────────────────── */
-.pane-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 20px;
-  height: calc(100vh - 180px);
-}
- 
-/* Left sidebar */
-.convo-list {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
- 
-.convo-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid #f3f4f6;
-  position: relative;
-  transition: background 0.12s;
-}
- 
-.convo-item:hover { background: #f9fafb; }
-.convo-item.selected { background: #eff4ff; }
- 
-.convo-avatar img {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
- 
-.convo-info { flex: 1; min-width: 0; }
- 
-.convo-name-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-}
- 
-.convo-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
- 
-.convo-time { font-size: 11px; color: #9ca3af; flex-shrink: 0; }
+  .chats-page {
+    background: #f3f4f6;
+    min-height: calc(100vh - 72px);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  /* ── Tab bar ── */
+  .tab-bar {
+    display: flex;
+    gap: 0;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 0 32px;
+  }
+  
+  .tab-btn {
+    position: relative;
+    background: none;
+    border: none;
+    padding: 16px 24px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .tab-btn.active {
+    color: #2254f5;
+    border-bottom-color: #2254f5;
+  }
+  
+  /* ── Tab content wrapper ── */
+  .tab-content {
+    padding: 24px 32px;
+  }
+  
+  /* CHATS PANE */
+  .pane-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    height: calc(100vh - 180px);
+  }
+  
+  /* Left sidebar */
+  .convo-list {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  .convo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    position: relative;
+    transition: background 0.12s;
+  }
+  
+  .convo-item:hover { 
+    background: #f9fafb;
+  }
+  .convo-item.selected {
+    background: #eff4ff; 
+  }
+  
+  .convo-avatar img {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  
+  .convo-info { flex: 1; min-width: 0; }
+  
+  .convo-name-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .convo-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .convo-time { font-size: 11px; color: #9ca3af; flex-shrink: 0; }
 
-/* ─────────────────────────────────────
-   RIGHT MESSAGE PANE
-───────────────────────────────────── */
-.message-pane {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
- 
-.no-convo {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #9ca3af;
-  gap: 12px;
-}
-.no-convo-icon { font-size: 48px; }
-.no-convo p { font-size: 15px; }
- 
-.message-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f3f4f6;
-  flex-shrink: 0;
-}
- 
-.header-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-}
- 
-.header-name { font-size: 16px; font-weight: 700; color: #111827; }
-.header-sub { font-size: 13px; color: #6b7280; }
-
-
-
-/* ─────────────────────────────────────
-   MESSAGES
-───────────────────────────────────── */
-.messages-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
- 
-.msg-row { display: flex; }
-.msg-mine { justify-content: flex-end; }
-.msg-theirs { justify-content: flex-start; }
- 
-.bubble {
-  max-width: 65%;
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 14px;
-  line-height: 1.5;
-}
- 
-.msg-mine .bubble {
-  background: #2254f5;
-  color: white;
-  border-bottom-right-radius: 4px;
-}
- 
-.msg-theirs .bubble {
-  background: #f3f4f6;
-  color: #111827;
-  border-bottom-left-radius: 4px;
-}
+  /* MESSAGES PANE */
+  .message-pane {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  .no-convo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    gap: 12px;
+  }
+  .no-convo-icon { 
+    font-size: 48px; 
+  }
+  .no-convo p { 
+    font-size: 15px; 
+  }
+  
+  .message-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f3f4f6;
+    flex-shrink: 0;
+  }
+  
+  .header-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  
+  .header-name { 
+    font-size: 16px; font-weight: 700; color: #111827; 
+  }
+  .header-sub { 
+    font-size: 13px; color: #6b7280; 
+  }
 
 
 
-.bubble p { margin: 0; }
+  /* MESSAGES */
+  .messages-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .msg-row { 
+    display: flex; 
+  }
+  .msg-mine { 
+    justify-content: flex-end; 
+  }
+  .msg-theirs { 
+    justify-content: flex-start; 
+  }
+  
+  .bubble {
+    max-width: 65%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  .msg-mine .bubble {
+    background: #2254f5;
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  
+  .msg-theirs .bubble {
+    background: #f3f4f6;
+    color: #111827;
+    border-bottom-left-radius: 4px;
+  }
 
-.msg-time {
-  display: block;
-  font-size: 11px;
-  margin-top: 4px;
-  opacity: 0.65;
-  text-align: right;
-}
+  .bubble p { 
+    margin: 0; 
+  }
 
-/* ─────────────────────────────────────
-   INPUT AREA
-───────────────────────────────────── */
-.message-input-area {
-  border-top: 1px solid #f3f4f6;
-  flex-shrink: 0;
-}
+  .msg-time {
+    display: block;
+    font-size: 11px;
+    margin-top: 4px;
+    opacity: 0.65;
+    text-align: right;
+  }
 
-/* ── Input toolbar (project + file attach) ── */
-.input-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px 0;
-  flex-wrap: wrap;
-}
+  /* INPUT AREA */
+  .message-input-area {
+    border-top: 1px solid #f3f4f6;
+    flex-shrink: 0;
+  }
 
-/* File attach button */
-.attach-file-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  background: #f3f4f6;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  font-size: 16px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  flex-shrink: 0;
-}
+  /* ── Input toolbar (project + file attach) ── */
+  .input-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px 0;
+    flex-wrap: wrap;
+  }
 
-.attach-file-btn:hover {
-  border-color: #2254f5;
-  background: #eff4ff;
-}
+  /* File attach button */
+  .attach-file-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    background: #f3f4f6;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    flex-shrink: 0;
+  }
 
-/* File chip extras */
-.file-chip { max-width: 260px; }
+  .attach-file-btn:hover {
+    border-color: #2254f5;
+    background: #eff4ff;
+  }
 
-.file-thumb-wrap { flex-shrink: 0; }
+  /* File chip extras */
+  .file-chip { 
+    max-width: 260px; 
+  }
 
-.file-thumb {
-  width: 28px;
-  height: 28px;
-  object-fit: cover;
-  border-radius: 4px;
-  display: block;
-}
+  .file-thumb-wrap { 
+    flex-shrink: 0;
+  }
 
-.project-selector-wrapper {
-  position: relative;
-}
+  .file-thumb {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    border-radius: 4px;
+    display: block;
+  }
 
-.attach-project-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #f3f4f6;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-}
+  .project-selector-wrapper {
+    position: relative;
+  }
 
-.attach-project-btn:hover,
-.attach-project-btn.active {
-  border-color: #2254f5;
-  background: #eff4ff;
-  color: #2254f5;
-}
+  .attach-project-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f3f4f6;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
 
-.attach-icon { font-size: 15px; }
+  .attach-project-btn:hover,
+  .attach-project-btn.active {
+    border-color: #2254f5;
+    background: #eff4ff;
+    color: #2254f5;
+  }
 
-.chevron {
-  font-size: 10px;
-  margin-left: 2px;
-  opacity: 0.6;
-}
+  .attach-icon { 
+    font-size: 15px;
+  }
 
-/* Dropdown */
-.project-dropdown {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  width: 300px;
-  background: white;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-  z-index: 100;
-  overflow: hidden;
-  max-height: 260px;
-  overflow-y: auto;
-}
+  .chevron {
+    font-size: 10px;
+    margin-left: 2px;
+    opacity: 0.6;
+  }
 
-.dropdown-hint {
-  padding: 16px;
-  font-size: 13px;
-  color: #9ca3af;
-  text-align: center;
-}
+  /* Dropdown */
+  .project-dropdown {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    width: 300px;
+    background: white;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 100;
+    overflow: hidden;
+    max-height: 260px;
+    overflow-y: auto;
+  }
 
-.dropdown-item {
-  padding: 12px 16px;
-  cursor: pointer;
-  border-bottom: 1px solid #f3f4f6;
-  transition: background 0.1s;
-}
+  .dropdown-hint {
+    padding: 16px;
+    font-size: 13px;
+    color: #9ca3af;
+    text-align: center;
+  }
 
-.dropdown-item:last-child { border-bottom: none; }
-.dropdown-item:hover { background: #f9fafb; }
-.dropdown-item-selected { background: #eff4ff !important; }
+  .dropdown-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid #f3f4f6;
+    transition: background 0.1s;
+  }
 
-.dropdown-item-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 3px;
-}
+  .dropdown-item:last-child { 
+    border-bottom: none; 
+  }
+  .dropdown-item:hover {
+     background: #f9fafb; 
+    }
+  .dropdown-item-selected { 
+    background: #eff4ff !important; 
+  }
 
-.dropdown-item-meta {
-  display: flex;
-  gap: 10px;
-  font-size: 12px;
-  color: #6b7280;
-}
+  .dropdown-item-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    margin-bottom: 3px;
+  }
 
-.dropdown-budget {
-  font-weight: 700;
-  color: #ff5a1f;
-}
+  .dropdown-item-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: #6b7280;
+  }
 
-/* Selected project chip */
-.selected-project-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #eff4ff;
-  border: 1.5px solid #c7d7fd;
-  border-radius: 8px;
-  padding: 5px 10px;
-  font-size: 13px;
-}
+  .dropdown-budget {
+    font-weight: 700;
+    color: #ff5a1f;
+  }
 
-.chip-icon { font-size: 14px; }
+  /* Selected project chip */
+  .selected-project-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #eff4ff;
+    border: 1.5px solid #c7d7fd;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 13px;
+  }
 
-.chip-title {
-  font-weight: 600;
-  color: #1e40af;
-  max-width: 160px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .chip-icon { 
+    font-size: 14px; 
+  }
 
-.chip-remove {
-  background: none;
-  border: none;
-  color: #6b7280;
-  cursor: pointer;
-  font-size: 12px;
-  padding: 0;
-  line-height: 1;
-  margin-left: 2px;
-  display: flex;
-  align-items: center;
-}
+  .chip-title {
+    font-weight: 600;
+    color: #1e40af;
+    max-width: 160px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-.chip-remove:hover { color: #ef4444; }
+  .chip-remove {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
+    line-height: 1;
+    margin-left: 2px;
+    display: flex;
+    align-items: center;
+  }
 
-/* Text input row */
-.message-input-row {
-  display: flex;
-  gap: 10px;
-  padding: 12px 20px;
-}
- 
-.message-input-row input {
-  flex: 1;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.15s;
-}
- 
-.message-input-row input:focus { border-color: #2254f5; }
- 
-.send-btn {
-  background: #2254f5;
-  color: white;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 22px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background 0.15s;
-}
- 
-.send-btn:hover { background: #1a42d4; }
-.send-btn:disabled { opacity: 0.45; cursor: not-allowed; }
- 
-/* ─────────────────────────────────────
-   ADS TAB
-───────────────────────────────────── */
-.proposals-list {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
+  .chip-remove:hover { 
+    color: #ef4444; 
+  }
 
-.ads-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-}
- 
-.ad-card {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  transition: box-shadow 0.2s;
-}
- 
-.ad-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
- 
-.ad-image { width: 100%; height: 180px; object-fit: cover; display: block; }
- 
-.ad-body { padding: 16px; }
- 
-.ad-top-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
- 
-.ad-title { margin: 0; font-size: 17px; font-weight: 700; color: #111827; }
- 
-.ad-badge {
-  background: #fff3e0;
-  color: #ff5a1f;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 999px;
-  white-space: nowrap;
-}
- 
-.ad-desc { margin: 0 0 14px; font-size: 14px; color: #6b7280; line-height: 1.5; }
- 
-.ad-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
- 
-.ad-from { font-size: 13px; color: #9ca3af; }
- 
-.ad-cta {
-  background: #2254f5;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
- 
-.ad-cta:hover { background: #1a42d4; }
- 
-/* ── Shared ── */
-.empty-hint {
-  font-size: 14px;
-  color: #9ca3af;
-  padding: 20px 16px;
-  text-align: center;
-}
- 
-.empty-hint.centered { padding: 60px; }
- 
-@media (max-width: 900px) {
-  .pane-layout { grid-template-columns: 1fr; }
-  .convo-list { max-height: 280px; }
-}
- 
-@media (max-width: 600px) {
-  .tab-content { padding: 16px; }
-  .tab-bar { padding: 0 16px; }
-  .project-dropdown { width: 260px; }
-}
+  /* Text input row */
+  .message-input-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 20px;
+  }
+  
+  .message-input-row input {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  
+  .message-input-row input:focus { 
+    border-color: #2254f5; 
+  }
+  
+  .send-btn {
+    background: #2254f5;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 22px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  
+  .send-btn:hover { 
+    background: #1a42d4; 
+  }
+  .send-btn:disabled { 
+    opacity: 0.45; cursor: not-allowed; 
+  }
+  
+  /* ADS TAB */
+  .proposals-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .ads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .ad-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s;
+  }
+  
+  .ad-card:hover { 
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1); 
+  }
+  
+  .ad-image { 
+    width: 100%; height: 180px; object-fit: cover; display: block;
+   }
+  
+  .ad-body { 
+    padding: 16px; 
+  }
+  
+  .ad-top-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  
+  .ad-title { 
+    margin: 0; font-size: 17px; font-weight: 700; color: #111827; 
+  }
+  
+  .ad-badge {
+    background: #fff3e0;
+    color: #ff5a1f;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  
+  .ad-desc { 
+    margin: 0 0 14px; font-size: 14px; color: #6b7280; line-height: 1.5;
+  }
+  
+  .ad-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  
+  .ad-from { 
+    font-size: 13px; color: #9ca3af; 
+  }
+  
+  .ad-cta {
+    background: #2254f5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  
+  .ad-cta:hover { 
+    background: #1a42d4; 
+  }
+  
+  /* ── Shared ── */
+  .empty-hint {
+    font-size: 14px;
+    color: #9ca3af;
+    padding: 20px 16px;
+    text-align: center;
+  }
+  
+  .empty-hint.centered { 
+    padding: 60px; 
+  }
+  
+  @media (max-width: 900px) {
+    .pane-layout { grid-template-columns: 1fr; }
+    .convo-list { max-height: 280px; }
+  }
+  
+  @media (max-width: 600px) {
+    .tab-content { padding: 16px; }
+    .tab-bar { padding: 0 16px; }
+    .project-dropdown { width: 260px; }
+  }
 </style>

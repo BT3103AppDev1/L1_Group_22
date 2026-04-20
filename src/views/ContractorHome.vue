@@ -1,5 +1,6 @@
 <template>
     <ToolBarContractor/>
+    <!-- Search Bar -->
     <div class="search-bar-wrapper">
       <div class="search-bar">
         <span class="search-icon">🔎</span>
@@ -12,19 +13,12 @@
     </div>
   
       <main class="main-content">
+        <!-- Filters -->
         <aside class="filters-panel">
           <div class="filters-header">
             <h2>Filters</h2>
             <button class="reset-btn" type="button" @click="resetFilters">Reset</button>
           </div>
-  
-          <!-- <section class="filter-group">
-            <h3>Status</h3>
-            <label v-for="status in statusOptions" :key="status" class="checkbox-item">
-              <input v-model="selectedStatuses" type="checkbox" :value="status" />
-              <span>{{ status }}</span>
-            </label>
-          </section> -->
   
           <section class="filter-group">
             <h3>Category</h3>
@@ -50,7 +44,7 @@
             </label>
           </section> -->
         </aside>
-  
+        <!-- Available Jobs/Projects listed by homeowners -->
         <section class="jobs-section">
           <div class="jobs-header-row">
             <p class="job-count">{{ filteredJobs.length }} jobs available</p>
@@ -81,10 +75,10 @@
       </main>
   </template>
   
-  <script setup> 
+<script setup> 
   import { computed, onMounted, ref } from "vue"
   import { useRouter } from "vue-router"
-  import { getAuth } from "firebase/auth"
+  import { getAuth, onAuthStateChanged } from "firebase/auth"
   import { collection, getDocs, orderBy, query, getDoc, doc, where } from "firebase/firestore"
   import { db } from "@/firebase"
 
@@ -129,7 +123,7 @@
   onMounted(() => {
     getJobs()
   })
-  
+  // Get all available jobs/projects
   async function getJobs() {
     loading.value = true
     error.value = ""
@@ -152,6 +146,7 @@
               const userSnap = await getDoc(doc(db, "users", data.homeownerId))
               if (userSnap.exists()) {
                 const u = userSnap.data()
+                console.log("homeownerId:", data.homeownerId)
                 data.homeownerName = u.fullName || "Unknown"
                 data.homeownerRating = u.rating || null
               }
@@ -170,7 +165,7 @@
 
     loading.value = false
   }
-  
+  // Filter jobs/projects
   const filteredJobs = computed(() => {
     return jobs.value.filter((job) => {
       const search = searchQuery.value.toLowerCase().trim()
@@ -262,21 +257,13 @@
     return value
   }
   
-
-  // function statusClass(status) {
-  //   if (status === "New") return "new"
-  //   if (status === "Invited") return "invited"
-  //   if (status === "Proposal Sent") return "proposal"
-  //   return ""
-  // }
-  
   function urgencyClass(urgency) {
     if (urgency === "Urgent") return "urgent"
     if (urgency === "Medium") return "medium"
     if (urgency === "Flexible") return "flexible"
     return ""
   }
-  
+  // Reset filters
   function resetFilters() {
     searchQuery.value = ""
     selectedStatuses.value = []
@@ -284,22 +271,18 @@
     selectedBudgets.value = []
     selectedUrgencies.value = []
   }
-  
-  // function sendProposal(job) {
-  //   router.push(`/contractor/send-proposal/${job.id}`)
-  // }
-
+  // Send proposal
   function handlePropose(project) {
     router.push(`/contractor/send-proposal/${project.id}`)
   }
-  
+  // View project details
   function viewDetails(job) {
     router.push(`/job-details/${job.id}`)
   }
   
   </script>
   
-  <style scoped>
+<style scoped>
   * {
     box-sizing: border-box;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -629,4 +612,4 @@
       width: 100%;
     }
   }
-  </style>
+</style>
